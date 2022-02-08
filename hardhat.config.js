@@ -1,0 +1,132 @@
+require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
+require("@tenderly/hardhat-tenderly");
+require('hardhat-contract-sizer');
+require('hardhat-deploy');
+require("dotenv").config();
+
+const { utils } = require("ethers");
+
+const ALCHEMY_ID = process.env.ALCHEMY_API_KEY;
+const PRIVATE_KEY = process.env.PRIVATE_KEY_DEPLOY;
+const etherscanApiKey = process.env.ETHER_SCAN_API_KEY;
+
+// This is a sample Hardhat task. To learn how to create your own go to
+// https://hardhat.org/guides/create-task.html
+task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
+    const accounts = await hre.ethers.getSigners();
+    for (const account of accounts) {
+        console.log(account.address);
+    }
+});
+
+// You need to export an object to set up your config
+// Go to https://hardhat.org/config/ to learn more
+
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+module.exports = {
+    defaultNetwork: "localhost",
+    networks: {
+        localhost: {
+            url: "http://127.0.0.1:8545",
+            chainId: 31337
+        },
+
+        ganache:{
+            url: "http://127.0.0.1:8545",
+            chainId: 1337
+        },
+
+        hardhat: {
+            forking: {
+                url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_ID}`,
+                blockNumber: 13802088,
+            },
+            from: PRIVATE_KEY,
+            blockGasLimit: 12000000,
+            gas: 8000000
+        },
+
+        polygon: {
+            url: 'https://polygon-rpc.com/',
+            accounts: [PRIVATE_KEY],
+            chainId: 137,
+            blockGasLimit: 12000000,
+            hardfork: 'london',
+            gas: 8000000,           // Gas sent with each transaction (default: ~6700000)
+            gasPrice: 60e9
+        },
+
+        tenderly: {
+            gas: 8000000,
+            url: "https://dashboard.tenderly.co/universe-finance/main-test/fork/9fc5a435-b805-4cca-84b4-cb985807f80c"
+        }
+
+    },
+    solidity: {
+        compilers: [
+            {
+                version: "0.7.6",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 1
+                    }
+                }
+            },
+            {
+                version: "0.6.12",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 100
+                    }
+                }
+            },
+            {
+                version: "0.6.6",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 100
+                    }
+                }
+            },
+            {
+                version: "0.5.16",
+                settings: {
+                   optimizer: {
+                       enabled: true,
+                       runs: 100
+                   }
+                }
+            },
+            {
+                version: "0.4.18",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 100
+                    }
+                }
+            }
+        ]
+    },
+    tenderly: {
+        username: "universe-finance",
+        project: "main-test",
+        forkNetwork: "137"
+        //Polygon: 137  Optimistic: 10   arb: 42161
+    },
+    contractSizer: {
+        alphaSort: true,
+        runOnCompile: false,
+        disambiguatePaths: false,
+    },
+    etherscan: {
+        apiKey: etherscanApiKey
+    }
+};
+
