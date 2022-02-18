@@ -129,4 +129,6 @@ interface IUniversePairVault is IERC20{
         bytes calldata data
     ) external;
 
+
+    function updateWhiteList(address _address, bool status) external;
 }

@@ -45,6 +45,7 @@ contract LeveragePairVault is Ownable {
         uint256 share; //在vault的份额
         uint256 openFactor; // 开仓的负债阈值
         uint256 liquidateFactor; // 清算的负债阈值
+        uint256 idx; //序号
     }
     /// vault address => poolInfo  金库地址和池子信息对应
     mapping(address => PoolInfo) public pools;
@@ -132,8 +133,9 @@ contract LeveragePairVault is Ownable {
         _tokenApprove(token0, address(router));
         _tokenApprove(token1, address(router));
 
-        poolIndex[currentPid] = _vaultAddress;
-        currentPid += 1;
+        pool.idx = currentPid;
+
+        poolIndex[currentPid++] = _vaultAddress;
 
         pool.vault = vault;
         pool.isOpen = true;
@@ -380,6 +382,7 @@ contract LeveragePairVault is Ownable {
     /// @param token1Debt 借币1的数量.
     function openPosition(
         uint256 _idx,
+        address _vaultAddress,
         uint256 token0Amount,
         uint256 token1Amount,
         uint256 token0Debt,
@@ -387,6 +390,7 @@ contract LeveragePairVault is Ownable {
     ) external {
         //获取金库地址
         address vaultAddress = poolIndex[_idx];
+        require(_vaultAddress == vaultAddress, "err idx");
         IUniversePairVault _vault = IUniversePairVault(vaultAddress);
         // 检查池子状态
         PoolInfo memory pool = pools[vaultAddress];
@@ -394,6 +398,9 @@ contract LeveragePairVault is Ownable {
 
         // 检查价格是不是合理
         require(isStable(_vault), "1");
+
+        //双币需要按比例存，修正参数
+        (token0Amount, token1Amount, token0Debt, token1Debt) = repairDepositAmount(_vault, token0Amount, token1Amount, token0Debt, token1Debt);
 
         // 检查开仓负债率
         uint256 currentFactor = calHealth(_vault, token0Amount.add(token0Debt), token1Amount.add(token1Debt), token0Debt, token1Debt);
@@ -449,6 +456,10 @@ contract LeveragePairVault is Ownable {
         // 检查价格是不是合理
         require(isStable(pool.vault));
 
+        // 修正存入金额
+        IUniversePairVault _vault = IUniversePairVault(position.vaultAddress);
+        (, token0Amount, token1Amount) = _vault.getBalancedAmount(token0Amount, token1Amount);
+
         IERC20 token0 = IERC20(pool.token0);
         IERC20 token1 = IERC20(pool.token1);
 
@@ -484,8 +495,7 @@ contract LeveragePairVault is Ownable {
 
     /// @dev 关仓
     /// @param positionId 仓位ID.
-    function closePosition(uint256 positionId, uint share) public {
-        require(share > 0, 'ZERO');
+    function closePosition(uint256 positionId) public {
         // Check Owner Address
         Position memory position = positions[positionId];
         require(position.owner == msg.sender, "not position owner");
@@ -495,7 +505,7 @@ contract LeveragePairVault is Ownable {
         IERC20 token0 = IERC20(pool.token0);
         IERC20 token1 = IERC20(pool.token1);
         //去关闭仓位，并偿还贷款
-        _closePosition(position, share);
+        _closePosition(position, position.share);
 
         // 将剩余的资金还给用户
         uint256 amt0 = token0.balanceOf(address(this));
@@ -593,6 +603,25 @@ contract LeveragePairVault is Ownable {
         if(token1Amount > 0){
             token1.safeTransferFrom(msg.sender, address(this), token1Amount);
         }
+    }
+
+    function repairDepositAmount(
+        IUniversePairVault _vault,
+        uint256 _token0Amount,
+        uint256 _token1Amount,
+        uint256 _token0Debt,
+        uint256 _token1Debt
+    ) internal view returns(uint256, uint256, uint256, uint256){
+        (, _token0Amount, _token1Amount) = _vault.getBalancedAmount(_token0Amount, _token1Amount);
+        if(_token0Debt == 0 || _token1Debt == 0){
+            _token0Debt = 0;
+            _token1Debt = 0;
+        }else if(_token0Amount.mul(_token1Debt) > _token1Amount.mul(_token0Debt)){
+           _token1Debt = FullMath.mulDiv(_token0Debt, _token1Amount, _token0Amount);
+        }else if(_token0Amount.mul(_token1Debt) < _token1Amount.mul(_token0Debt)){
+           _token0Debt = FullMath.mulDiv(_token1Debt, _token0Amount, _token1Amount);
+        }
+        return (_token0Amount, _token1Amount, _token0Debt, _token1Debt);
     }
 
     /* ========== CALLBACK ========== */

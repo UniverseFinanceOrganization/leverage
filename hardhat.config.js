@@ -61,7 +61,7 @@ module.exports = {
 
         tenderly: {
             gas: 8000000,
-            url: "https://dashboard.tenderly.co/universe-finance/main-test/fork/9fc5a435-b805-4cca-84b4-cb985807f80c"
+            url: "https://dashboard.tenderly.co/universe-finance/main-test/fork/10bfb838-e749-4589-9694-1c0645bd1e9c",
         }
 
     },

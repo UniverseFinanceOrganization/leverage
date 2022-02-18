@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "./IBToken.sol";
 
 contract LendVault is ILendVault, Ownable, ReentrancyGuard {
@@ -161,9 +162,10 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @param tokenAddress the deposit token address.
     /// @param balance the amount of the token.
     function balanceToShare(address tokenAddress, uint256 balance) public view returns(uint256) {
+        uint256 totalShare = banks[tokenAddress].ibToken.totalSupply();
+        if (totalShare == 0) {return balance;}
         uint256 totalBal = totalBalance(tokenAddress);
-        if (totalBal == 0) {return balance;}
-        return banks[tokenAddress].ibToken.totalSupply().mul(balance).div(totalBal);
+        return FullMath.mulDiv(totalShare, balance, totalBal);
     }
 
     /// @dev Return the balance of the balance in the token bank.
