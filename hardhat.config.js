@@ -9,6 +9,7 @@ const { utils } = require("ethers");
 
 const ALCHEMY_ID = process.env.ALCHEMY_API_KEY;
 const PRIVATE_KEY = process.env.PRIVATE_KEY_DEPLOY;
+const PRIVATE_KEY_ETH = process.env.PRIVATE_KEY_DEPLOY_ETHEREUM
 const etherscanApiKey = process.env.ETHER_SCAN_API_KEY;
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -37,6 +38,15 @@ module.exports = {
         ganache:{
             url: "http://127.0.0.1:8545",
             chainId: 1337
+        },
+
+        mainnet: {
+            url: 'https://mainnet.infura.io/v3/deded464bfe44a58bbad4783a64f3b32',
+            accounts: [PRIVATE_KEY_ETH],
+            hardfork: 'london',
+            chainId: 1,
+            gas: 8500000,           // Gas sent with each transaction (default: ~6700000)
+            gasPrice: 65e9
         },
 
         hardhat: {

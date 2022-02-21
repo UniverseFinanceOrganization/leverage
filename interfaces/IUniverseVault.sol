@@ -135,6 +135,7 @@ interface IUniverseVault {
         bytes calldata data
     ) external;
 
+    function updateWhiteList(address _address, bool status) external;
 
     function swapPool() external returns(address);
 }
