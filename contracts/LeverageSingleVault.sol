@@ -28,6 +28,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
+import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
@@ -80,7 +81,8 @@ contract LeverageSingleVault is Ownable {
     // Approve Status  token => vault
     mapping(address => mapping(address => bool)) public approveStatus;
 
-    uint24 public swapFee = 3000;
+    uint24 public swapFee;
+    address private requestPoolAddress;
     address public devAddress;
     ILendVault public immutable lendVault;
     ISwapRouter public immutable router;
@@ -315,7 +317,8 @@ contract LeverageSingleVault is Ownable {
         param.tokenOut = tokenOut;
         param.amount = _amountOut;
         param.fee = swapFee;
-        param.sqrtPriceLimitX96 = 0;
+        bool zeroForOne = param.tokenIn < param.tokenOut;
+        param.sqrtPriceLimitX96 = zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1;
         // quoter price
         (_amountIn, , ,) = quoter.quoteExactOutputSingle(param);
     }
@@ -481,6 +484,9 @@ contract LeverageSingleVault is Ownable {
         require(position.owner == msg.sender, "not position owner");
         require(position.share > 0, "empty position");
 
+        // 检查价格是不是合理
+        require(isStable(position.zero, IUniverseVault(position.vaultAddress)), "1");
+
         //去关闭仓位，并偿还贷款
         _closePosition(position);
 
@@ -508,8 +514,10 @@ contract LeverageSingleVault is Ownable {
         PoolInfo memory pool = pools[key];
         // 更新池子的借贷部分份额
         pools[key].share = pool.share.sub(position.share);
-
+        updateSwapInfo(IUniverseVault(pool.vaultAddress));
         IUniverseVault vault = IUniverseVault(pool.vaultAddress);
+
+
         // payback
         lendVault.liquidate(
             pool.token0Address,
@@ -528,6 +536,9 @@ contract LeverageSingleVault is Ownable {
         // 检查清算条件
         PoolInfo memory pool = pools[getKey(position.zero, position.vaultAddress)];
         require(posHealth(positionId) >= pool.liquidateFactor, "health position");
+
+        // 检查价格是不是合理
+        require(isStable(position.zero, IUniverseVault(position.vaultAddress)), "1");
 
         // 清算
         _liquidate(position);
@@ -563,6 +574,11 @@ contract LeverageSingleVault is Ownable {
             vaultAddress: _vaultAddress
         });
         key = keccak256(abi.encode(_vaultInfo));
+    }
+
+    function updateSwapInfo(IUniverseVault _vault) internal{
+        (,,requestPoolAddress,,,,) = _vault.position();
+        swapFee = IUniswapV3Pool(requestPoolAddress).fee();
     }
 
     /* ========== CALLBACK ========== */

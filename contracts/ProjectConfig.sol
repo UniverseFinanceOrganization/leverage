@@ -18,18 +18,23 @@ contract ProjectConfig is IProjectConfig, Ownable {
 
     IPriceOracle private oracle;
 
+    address public override hunter;
+    bool public override onlyHunter = true;
+
     constructor(
         uint256 _interestBps,
         uint256 _liquidateBps,
         uint256 _flashBps,
         address _interestModel,
-        address _oracle
+        address _oracle,
+        address _hunter
     ) {
         interestBps = _interestBps;
         liquidateBps = _liquidateBps;
         flashBps = _flashBps;
         interestModel = IInterestModel(_interestModel);
         oracle = IPriceOracle(_oracle);
+        hunter = _hunter;
     }
 
     function setParams(
@@ -37,11 +42,29 @@ contract ProjectConfig is IProjectConfig, Ownable {
         uint256 _liquidateBps,
         uint256 _flashBps,
         address _interestModel
-    ) public onlyOwner {
+    ) external onlyOwner {
         interestBps = _interestBps;
         liquidateBps = _liquidateBps;
         flashBps = _flashBps;
         interestModel = IInterestModel(_interestModel);
+    }
+
+    function changeOracle(
+        address newOracle
+    ) external onlyOwner {
+        require(newOracle != address(0));
+        oracle = IPriceOracle(newOracle);
+    }
+
+    function setHunter( address _hunter) external onlyOwner {
+        require(_hunter != address(0));
+        hunter = _hunter;
+    }
+
+    function setOnlyHunter(
+        bool _onlyHunter
+    ) external onlyOwner {
+        onlyHunter = _onlyHunter;
     }
 
     /// 计算利率 系数: 1E18

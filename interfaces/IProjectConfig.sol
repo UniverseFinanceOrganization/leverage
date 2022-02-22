@@ -13,4 +13,8 @@ interface IProjectConfig {
 
     function getOracle() external view returns (address);
 
+    function hunter() external view returns (address);
+
+    function onlyHunter() external view returns (bool);
+
 }
