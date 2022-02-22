@@ -4,13 +4,21 @@ pragma solidity 0.7.6;
 pragma abicoder v2;
 
 /**
-  code       message
+errorCode       message
    0       close or not support
    1       price abnormal
    2       too much debt
    3       only LendVault Address
    4       share equal to zero!
    5       zero address
+   6       pool already exists!
+   7       invalid params
+   8       wrong id
+   9       price abnormal
+   10      not position owner
+   11      closed position
+   12      health position
+   13      only hunter
   **/
 
 import "../interfaces/ILendVault.sol";
@@ -35,34 +43,32 @@ contract LeveragePairVault is Ownable {
     using SafeERC20 for IUniversePairVault;
     using SafeMath for uint256;
 
-    // pool信息
     struct PoolInfo {
-        bool isOpen;  //是否开启
-        bool canFarm;  //能否挖矿
-        address token0; //币种0
-        address token1; //币种1
-        IUniversePairVault vault;  // 金库合约
-        uint64  maxPriceDiff; // 允许最大的价格差，防止价格攻击
-        uint256 share; //在vault的份额
-        uint256 openFactor; // 开仓的负债阈值
-        uint256 liquidateFactor; // 清算的负债阈值
-        uint256 idx; //序号
+        bool isOpen;
+        bool canFarm;
+        address token0;
+        address token1;
+        IUniversePairVault vault;
+        uint64  maxPriceDiff; //prevent price attack
+        uint256 share; //the share of this pool in universe vault
+        uint256 openFactor;
+        uint256 liquidateFactor;
+        uint256 idx;
     }
 
-    /// vault address => poolInfo  金库地址和池子信息对应
+    /// vault address => poolInfo
     mapping(address => PoolInfo) public pools;
-    /// index = > vault address 序号和金库地址对应
+    /// index = > vault address
     mapping(uint256 => address) public poolIndex;
-    // 当前序号（和金库的映射）
+    // index
     uint256 public currentPid;
 
-    //仓位信息
     struct Position {
-        address owner; //仓位持有人
-        address vaultAddress;  //金库合约地址
-        uint256 debtShare0; //借贷token0的份额
-        uint256 debtShare1; //借贷token1的份额
-        uint256 share;  // 仓位份额
+        address owner;
+        address vaultAddress;
+        uint256 debtShare0;
+        uint256 debtShare1;
+        uint256 share;
     }
     /// index => position
     mapping(uint256 => Position) public positions;
@@ -120,9 +126,9 @@ contract LeveragePairVault is Ownable {
         uint256 _liquidateFactor
     ) external onlyOwner {
         require(_openFactor < _liquidateFactor && _liquidateFactor < 10000
-            && _maxPriceDiff > 0 && _maxPriceDiff < 1000, "invalid params");
+            && _maxPriceDiff > 0 && _maxPriceDiff < 1000, "7");
         PoolInfo memory pool = pools[_vaultAddress];
-        require(!pool.isOpen, 'pool already exists!');
+        require(!pool.isOpen, '6');
 
         IUniversePairVault vault = IUniversePairVault(_vaultAddress);
 
@@ -162,9 +168,9 @@ contract LeveragePairVault is Ownable {
         uint256 _liquidateFactor
     ) external onlyOwner {
         require(_openFactor < _liquidateFactor && _liquidateFactor < 10000
-                && _maxPriceDiff > 0 && _maxPriceDiff < 1000 , "invalid params");
+                && _maxPriceDiff > 0 && _maxPriceDiff < 1000 , "7");
         PoolInfo storage pool = pools[_vaultAddress];
-        require(pool.isOpen, 'pool not exists!');
+        require(pool.isOpen, '6');
         pool.canFarm = canFarm;
         pool.openFactor = _openFactor;
         pool.liquidateFactor = _liquidateFactor;
@@ -173,7 +179,6 @@ contract LeveragePairVault is Ownable {
 
     /* ========== READABLE ========== */
 
-    /// lp转换成金额
     function lpShareToAmount(address _vaultAddress, uint256 _lpShare) public view returns (uint256, uint256) {
         PoolInfo memory pool = pools[_vaultAddress];
         if (pool.share == 0) {return (0, 0);}
@@ -187,23 +192,20 @@ contract LeveragePairVault is Ownable {
         return (amount0, amount1);
     }
 
-    /// 借款份额转成借款金额
     function shareToDebt(address tokenAddress, uint256 share) public view returns (uint256) {
         (uint256 debtBal, uint256 debtShare) = lendVault.totalDebt(tokenAddress);
         if (debtShare == 0) return share;
         return share.mul(debtBal).div(debtShare);
     }
 
-    /// 借款金额转成借款份额
     function debtToShare(address tokenAddress, uint256 balance) public view returns (uint256) {
         (uint256 debtBal, uint256 debtShare) = lendVault.totalDebt(tokenAddress);
         if (debtBal == 0) return balance;
         return balance.mul(debtShare).div(debtBal);
     }
 
-    /// 仓位的负债率
     function posHealth(uint256 id) public view returns (uint256) {
-        require(id < currentPos, "wrong id");
+        require(id < currentPos, "8");
         Position storage position = positions[id];
         if (position.share == 0) {return 0;}
         PoolInfo storage pool = pools[position.vaultAddress];
@@ -224,12 +226,15 @@ contract LeveragePairVault is Ownable {
         uint256 debt0,
         uint256 debt1
     )  internal view returns(uint256) {
+        if(debt0 == 0 && debt1 == 0){
+            return 10000;
+        }
         (,,address _poolAddress,,,,) = _vault.positionList(0);
         uint256 priceX96 = _priceX96(_poolAddress);
 
         uint256 userNv = oneTokenAmount(amount0, amount1, priceX96);
         uint256 debtNv = oneTokenAmount(debt0, debt1, priceX96);
-        //有可能实际价格无限趋近0，所以 priceX96 = 0，token1被全部换成token0，导致算出的userNv为0
+        //if priceX96 = 0，userNv = 0,
         if(userNv == 0){
             return uint(-1);
         }else{
@@ -243,24 +248,23 @@ contract LeveragePairVault is Ownable {
     function isStable(IUniversePairVault _vault) internal view returns (bool) {
         (,,address _poolAddress,,,,) = _vault.positionList(0);
         PoolInfo memory pool = pools[address(_vault)];
-        // 1. 获取当前价格
+        // 1.get price
         uint256 priceX96 = _priceX96(_poolAddress);
-        // 2. 获取3、6、9秒前的平均价格
+        // 2. get avg price for 3、6、9 seconds ago
         uint256 secondsAgoPriceX96 = IPriceOracle(configReader.getOracle()).getPrice(_poolAddress, 3, 3);
-        // 3. 获取配置的最大价格差
+        // 3. set max price diff
         uint256 maxPriceDiff = pool.maxPriceDiff;
-        // 4. 计算价格是否在合理范围内
+        // 4. check price
         if(priceX96 > secondsAgoPriceX96){
-            require(priceX96.sub(secondsAgoPriceX96) <= secondsAgoPriceX96.mul(maxPriceDiff).div(10000), "price abnormal");
+            require(priceX96.sub(secondsAgoPriceX96) <= secondsAgoPriceX96.mul(maxPriceDiff).div(10000), "9");
         }else{
-            require(secondsAgoPriceX96.sub(priceX96) <= priceX96.mul(maxPriceDiff).div(10000), "price abnormal");
+            require(secondsAgoPriceX96.sub(priceX96) <= priceX96.mul(maxPriceDiff).div(10000), "9");
         }
         return true;
     }
 
     /* ========== PURE ========== */
 
-    /// a0转a1计算总数
     function oneTokenAmount(uint256 a0, uint256 a1, uint256 priceX96) internal pure returns (uint256) {
         return FullMath.mulDiv(priceX96, a0, FixedPoint96.Q96).add(a1);
     }
@@ -268,10 +272,8 @@ contract LeveragePairVault is Ownable {
     /* ========== INTERNAL ========== */
 
     function deposit(IUniversePairVault _vault, uint256 amount0, uint256 amount1) internal returns (uint256 share0, uint256 share1) {
-        //存款
         (share0, share1) = _vault.deposit(amount0, amount1, address(this));
-        require(share0 > 0 || share1 > 0, "share equal to zero!");
-        // EVENT
+        require(share0 > 0 || share1 > 0, "4");
         emit Deposit(msg.sender, share0, share1, amount0, amount1);
     }
 
@@ -286,7 +288,6 @@ contract LeveragePairVault is Ownable {
         emit Withdraw(address(this), share);
     }
 
-    //用 _amountIn 个 tokenIn 去换 tokeOut, 收到的数量不能少于 _amountOutMinimum
     function _swap(address tokenIn, address tokenOut, uint256 _amountIn, uint256 _amountOutMinimum) internal {
         // swap params
         ISwapRouter.ExactInputSingleParams memory param;
@@ -305,9 +306,7 @@ contract LeveragePairVault is Ownable {
         emit Swap(msg.sender, tokenIn, tokenOut, _amountIn, amountOut);
     }
 
-    // 询价(换_amountOut个tokenOut需要多少个tokenIn)
     function _quoter(address tokenIn, address tokenOut, uint256 _amountOut) internal returns (uint256 _amountIn){
-        // 单路径询价参数
         IQuoterV2.QuoteExactOutputSingleParams memory param;
         param.tokenIn = tokenIn;
         param.tokenOut = tokenOut;
@@ -319,14 +318,11 @@ contract LeveragePairVault is Ownable {
         (_amountIn, , ,) = quoter.quoteExactOutputSingle(param);
     }
 
-    ///dev 偿还足够的借款-当足够偿还时，直接偿还并返回剩余金额和0，当不够用偿还时不偿还，并返回0和扣除余额后的应偿金额
     function payLoanEnough(address token, uint256 debtValue) internal returns (uint256, uint256) {
-        // 要还款币种余额
         uint256 tokenBal = IERC20(token).balanceOf(address(this));
         if(debtValue == 0){
             return (tokenBal,  0);
         }
-        // 足够偿还了 直接还款
         if(tokenBal >= debtValue){
             IERC20(token).safeTransfer(msg.sender, debtValue);
             return (tokenBal - debtValue,  0);
@@ -335,7 +331,7 @@ contract LeveragePairVault is Ownable {
         }
     }
 
-    ///用tokenB去换token用来偿还token
+    ///use tokenB swap token for pay loan
     function payLoanLack(address token, address tokenB, uint256 restDebt, uint256 balB) public onlyLendVault {
         //先去询价restDebt个token需要多少tokenB
         uint256 swapTokenB =  _quoter(tokenB, token, restDebt);
@@ -355,11 +351,11 @@ contract LeveragePairVault is Ownable {
 
     /* ========== WRITEABLE ========== */
 
-    /// @dev 开仓
-    /// @param token0Amount 存入币0的数量.
-    /// @param token1Amount 存入币1的数量.
-    /// @param token0Debt 借币0的数量.
-    /// @param token1Debt 借币1的数量.
+    /// @dev open position
+    /// @param token0Amount .
+    /// @param token1Amount .
+    /// @param token0Debt .
+    /// @param token1Debt .
     function openPosition(
         address _vaultAddress,
         uint256 token0Amount,
@@ -367,31 +363,24 @@ contract LeveragePairVault is Ownable {
         uint256 token0Debt,
         uint256 token1Debt
     ) external {
-        // 获取金库地址
-        require(_vaultAddress != address(0), "zero address");
+        require(_vaultAddress != address(0), "5");
         IUniversePairVault _vault = IUniversePairVault(_vaultAddress);
-        // 检查池子状态
         PoolInfo memory pool = pools[_vaultAddress];
         require(pool.isOpen && pool.canFarm, "0");
-
-        // 检查价格是不是合理
+        //check price
         require(isStable(_vault), "1");
 
-        //双币需要按比例存，修正参数
         (token0Amount, token1Amount, token0Debt, token1Debt) = repairDepositAmount(_vault, token0Amount, token1Amount, token0Debt, token1Debt);
 
-        // 检查开仓负债率
         uint256 currentFactor = calHealth(_vault, token0Amount.add(token0Debt), token1Amount.add(token1Debt), token0Debt, token1Debt);
         require( currentFactor < pool.openFactor, "2");
 
-        // 新仓位
         Position memory position = positions[currentPos++];
         position.owner = msg.sender;
         position.vaultAddress = _vaultAddress;
 
         transferIn(pool, token0Amount, token1Amount);
 
-        // 如有借款先从lendVault处借
         if (token0Debt > 0) {
             position.debtShare0 = lendVault.issueLoan(pool.token0, token0Debt, address(this));
         }
@@ -399,12 +388,10 @@ contract LeveragePairVault is Ownable {
             position.debtShare1 = lendVault.issueLoan(pool.token1, token1Debt, address(this));
         }
 
-        // 去存钱，获取ULP--存在杠杆所以ulp不转给用户
         (uint256 share,) = deposit(_vault, token0Amount.add(token0Debt), token1Amount.add(token1Debt));
         position.share = position.share.add(share);
         pool.share = pool.share.add(share);
 
-        //更新仓位
         positions[currentPos - 1] = position;
         pools[_vaultAddress] = pool;
 
@@ -412,10 +399,10 @@ contract LeveragePairVault is Ownable {
 
     }
 
-    /// @dev 补仓
-    /// @param positionId 仓位ID.
-    /// @param token0Amount 存入币0的数量.
-    /// @param token1Amount 存入币1的数量.
+    /// @dev cover position
+    /// @param positionId .
+    /// @param token0Amount .
+    /// @param token1Amount .
     function coverPosition(
         uint256 positionId,
         uint256 token0Amount,
@@ -424,17 +411,16 @@ contract LeveragePairVault is Ownable {
 
         // Check Owner Address
         Position memory position = positions[positionId];
-        require(position.owner == msg.sender, "not position owner");
-        require(position.share > 0, "closed position");
+        require(position.owner == msg.sender, "10");
+        require(position.share > 0, "11");
 
         // object
         PoolInfo memory pool = pools[position.vaultAddress];
-        require(pool.isOpen && pool.canFarm, "not supported or close");
+        require(pool.isOpen && pool.canFarm, "0");
 
-        // 检查价格是不是合理
+        // price check
         require(isStable(pool.vault), "1");
 
-        // 修正存入金额
         IUniversePairVault _vault = IUniversePairVault(position.vaultAddress);
         (, token0Amount, token1Amount) = _vault.getBalancedAmount(token0Amount, token1Amount);
 
@@ -448,48 +434,47 @@ contract LeveragePairVault is Ownable {
         // deposit
         (uint256 ulpAmount,) = deposit(pool.vault, token0Amount, token1Amount);
 
-        // 计算仓位份额
         positions[positionId].share = position.share.add(ulpAmount);
         pools[position.vaultAddress].share = pool.share.add(ulpAmount);
 
         emit CoverPosition(msg.sender, position.vaultAddress, token0Amount, token1Amount);
     }
 
-    /// @dev 关仓
-    /// @param position 仓位信息.
+    /// @dev close position
+    /// @param position
+    /// @param share
     function _closePosition(Position memory position, uint share) internal {
         PoolInfo memory pool = pools[position.vaultAddress];
-        // 去withdraw
+        // go to withdraw
         withdraw(pool.vault, share);
 
-        // 更新pool的share
+        // update pool share
         pools[position.vaultAddress].share = pool.share.sub(position.share);
 
-        // 借了钱要还
+        // pay back
         if (position.debtShare0 > 0 || position.debtShare1 > 0) {
             updateSwapInfo(pool);
             lendVault.payLoan(pool.token0, pool.token1, position.debtShare0, position.debtShare1);
         }
     }
 
-    /// @dev 关仓
-    /// @param positionId 仓位ID.
+    /// @dev close position
+    /// @param positionId
     function closePosition(uint256 positionId) external {
         // Check Owner Address
         Position memory position = positions[positionId];
-        require(position.owner == msg.sender, "not position owner");
-        require(position.share > 0, "empty position");
+        require(position.owner == msg.sender, "10");
+        require(position.share > 0, "11");
 
         PoolInfo memory pool = pools[position.vaultAddress];
-        // 检查价格是不是合理
         require(isStable(pool.vault), "1");
 
         IERC20 token0 = IERC20(pool.token0);
         IERC20 token1 = IERC20(pool.token1);
-        //去关闭仓位，并偿还贷款
+        //close position and pay loan
         _closePosition(position, position.share);
 
-        // 将剩余的资金还给用户
+        // pay back to
         uint256 amt0 = token0.balanceOf(address(this));
         uint256 amt1 = token1.balanceOf(address(this));
         if (amt0 > 0) {
@@ -511,8 +496,8 @@ contract LeveragePairVault is Ownable {
     function closePositionPre(uint256 positionId) external view returns(uint256 bal0, uint256 bal1){
         // Check Owner Address
         Position memory position = positions[positionId];
-        require(position.owner == msg.sender, "not position owner");
-        require(position.share > 0, "empty position");
+        require(position.owner == msg.sender, "10");
+        require(position.share > 0, "11");
 
         PoolInfo memory pool = pools[position.vaultAddress];
         IERC20 token0 = IERC20(pool.token0);
@@ -523,7 +508,7 @@ contract LeveragePairVault is Ownable {
         uint256 debt0 = lendVault.debtShareToBalance(pool.token0, position.debtShare0);
         uint256 debt1 = lendVault.debtShareToBalance(pool.token1, position.debtShare1);
 
-        // 先把足够还的还了
+        //
         if(bal0 >= debt0){
             bal0 = bal0.sub(debt0);
             debt0 = 0;
@@ -538,11 +523,11 @@ contract LeveragePairVault is Ownable {
             bal1 = 0;
             debt1 = debt1.sub(bal1);
         }
-        // 两个都还完了
+        //
         if(debt0 == 0 && debt1 == 0){
             return (bal0, bal1);
         }
-        // 都不够还，各还各的,把能偿还的还掉
+        //
         if(debt0 > 0 && debt1 > 0){
             return (bal0, bal1);
         }
@@ -550,9 +535,8 @@ contract LeveragePairVault is Ownable {
         (,int24 tick,,,,,) = IUniswapV3Pool(poolAddress).slot0();
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
 
-        // A够还 B不够
+        //
         if(debt0 == 0 && debt1 > 0 && bal0 > 0){
-            //计算支付debt1需要多少token0
             uint256 needBal0 = FullMath.mulDiv(debt1, sqrtPriceX96, FixedPoint96.Q96);
             needBal0 = FullMath.mulDiv(needBal0, sqrtPriceX96, FixedPoint96.Q96);
             if(bal0 >= needBal0){
@@ -561,9 +545,8 @@ contract LeveragePairVault is Ownable {
                 bal0 = 0;
             }
         }
-        // B够还 A不够
+        //
         if(debt1 == 0 && debt0 > 0 && bal1 > 0){
-            //计算支付debt0需要多少token1
             uint256 needBal1 = FullMath.mulDiv(debt0, FixedPoint96.Q96, sqrtPriceX96);
             needBal1 = FullMath.mulDiv(needBal1, FixedPoint96.Q96, sqrtPriceX96);
             if(bal1 >= needBal1){
@@ -574,15 +557,15 @@ contract LeveragePairVault is Ownable {
         }
     }
 
-    /// @dev 清算
-    /// @param position 仓位信息.
+    /// @dev liquidate
+    /// @param position
     function _liquidate(Position memory position) internal {
 
         PoolInfo memory pool = pools[position.vaultAddress];
         // withdraw
         withdraw(pool.vault, position.share);
 
-        // 更新池子的借贷部分份额
+        // update pool share
         pools[position.vaultAddress].share = pool.share.sub(position.share);
         updateSwapInfo(pool);
         // payback
@@ -590,24 +573,19 @@ contract LeveragePairVault is Ownable {
 
     }
 
-    /// @dev 清算
-    /// @param positionId 仓位ID.
+    /// @dev liquidate
+    /// @param positionId .
     function liquidate(uint256 positionId) external  {
-        require(!configReader.onlyHunter() || msg.sender == configReader.hunter(), "only hunter");
-        // 检查仓位状态
+        require(!configReader.onlyHunter() || msg.sender == configReader.hunter(), "13");
         Position memory position = positions[positionId];
-        require(position.share > 0, "empty position");
-        // 检查清算条件
+        require(position.share > 0, "11");
         PoolInfo memory pool = pools[position.vaultAddress];
-        require(posHealth(positionId) >= pool.liquidateFactor, "health position");
+        require(posHealth(positionId) >= pool.liquidateFactor, "12");
 
-        // 检查价格是不是合理
         require(isStable(pool.vault), "1");
 
-        // 清算
         _liquidate(position);
 
-        // 残值剩余按比例转给清算人和开仓人
         IERC20 token0 = IERC20(pool.token0);
         IERC20 token1 = IERC20(pool.token1);
         uint256 liquidateRate = configReader.liquidateBps();
@@ -641,7 +619,6 @@ contract LeveragePairVault is Ownable {
     function transferIn(PoolInfo memory pool, uint256 token0Amount, uint256 token1Amount) internal {
         IERC20 token0 = IERC20(pool.token0);
         IERC20 token1 = IERC20(pool.token1);
-        // 把钱从用户转给策略
         if(token0Amount > 0){
             token0.safeTransferFrom(msg.sender, address(this), token0Amount);
         }
@@ -670,34 +647,28 @@ contract LeveragePairVault is Ownable {
     }
 
     function updateSwapInfo(PoolInfo memory pool) internal {
-        //可以用来验证UniswapV3 callback的地址
         (,,requestPoolAddress,,,,) = pool.vault.positionList(0);
-        // 因为每个池子的swapFee可能都不一样，所以每次都去更新，另外该字段还被用来校验callback的地址是否合法
         swapFee = IUniswapV3Pool(requestPoolAddress).fee();
     }
 
     /* ========== CALLBACK ========== */
 
     function payLoanCallback(address tokenA, address tokenB, uint256 debtValueA, uint256 debtValueB) external onlyLendVault {
-
-        // 先把足够还的还了
         (uint256 balA, uint256 restDebtA) = payLoanEnough(tokenA, debtValueA);
         (uint256 balB, uint256 restDebtB) = payLoanEnough(tokenB, debtValueB);
-        // 两个都还完了
+
         if(restDebtA == 0 && restDebtB == 0){
             return;
         }
-        // 都不够还，各还各的,把能偿还的还掉
+
         if(restDebtA > 0 && restDebtB > 0){
             IERC20(tokenA).safeTransfer(msg.sender, debtValueA - restDebtA);
             IERC20(tokenB).safeTransfer(msg.sender, debtValueB - restDebtB);
             return;
         }
-        // A够还 B不够
         if(restDebtA == 0 && restDebtB > 0){
             payLoanLack(tokenB, tokenA, restDebtB, balA);
         }
-        // B够还 A不够
         if(restDebtB == 0 && restDebtA > 0){
             payLoanLack(tokenA, tokenB, restDebtA, balB);
         }

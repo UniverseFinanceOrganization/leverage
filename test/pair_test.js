@@ -173,8 +173,9 @@ describe("Pair-Test", function() {
            let currentTick = slot0[1];
            console.log("current tick:", currentTick);
            //价格变化50%，tick + 4055   价格反7倍 tick + 20000
-           let targetTick = currentTick + 12000;
+           let targetTick = currentTick - 12000;
            console.log("targetTick tick:", targetTick);
+
            let _amountIn = ethers.utils.parseEther("50000000.0");
 
            await looks.connect(operator).transfer(testTick.address, _amountIn);
@@ -187,6 +188,11 @@ describe("Pair-Test", function() {
 
            let health = await pairVault.posHealth(positionId);
            console.log("仓位：" + positionId + "的负债率是：", health);
+    });
+
+    it("13-5、close position pre", async function() {
+            let r = await pairVault.connect(operator).closePositionPre(positionId);
+            console.log("关仓预览：", r);
     });
 
     it.skip("14、cover position", async function() {
