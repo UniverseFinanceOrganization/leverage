@@ -14,4 +14,6 @@ interface ILendVault {
     function payLoan(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external;
 
     function liquidate(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external;
+
+    function debtShareToBalance(address tokenAddress, uint256 share) external view returns(uint256);
 }

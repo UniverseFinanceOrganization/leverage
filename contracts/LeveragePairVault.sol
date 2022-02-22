@@ -506,6 +506,74 @@ contract LeveragePairVault is Ownable {
 
     }
 
+    /// @dev
+    /// @param
+    function closePositionPre(uint256 positionId) external view returns(uint256 bal0, uint256 bal1){
+        // Check Owner Address
+        Position memory position = positions[positionId];
+        require(position.owner == msg.sender, "not position owner");
+        require(position.share > 0, "empty position");
+
+        PoolInfo memory pool = pools[position.vaultAddress];
+        IERC20 token0 = IERC20(pool.token0);
+        IERC20 token1 = IERC20(pool.token1);
+
+        (bal0, bal1) = pool.vault.calBalance(position.share);
+
+        uint256 debt0 = lendVault.debtShareToBalance(pool.token0, position.debtShare0);
+        uint256 debt1 = lendVault.debtShareToBalance(pool.token1, position.debtShare1);
+
+        // 先把足够还的还了
+        if(bal0 >= debt0){
+            bal0 = bal0.sub(debt0);
+            debt0 = 0;
+        }else{
+            bal0 = 0;
+            debt0 = debt0.sub(bal0);
+        }
+        if(bal1 >= debt1){
+            bal1 = bal1.sub(debt1);
+            debt1 = 0;
+        }else{
+            bal1 = 0;
+            debt1 = debt1.sub(bal1);
+        }
+        // 两个都还完了
+        if(debt0 == 0 && debt1 == 0){
+            return (bal0, bal1);
+        }
+        // 都不够还，各还各的,把能偿还的还掉
+        if(debt0 > 0 && debt1 > 0){
+            return (bal0, bal1);
+        }
+        (,,address poolAddress,,,,) = pool.vault.positionList(0);
+        (,int24 tick,,,,,) = IUniswapV3Pool(poolAddress).slot0();
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
+
+        // A够还 B不够
+        if(debt0 == 0 && debt1 > 0 && bal0 > 0){
+            //计算支付debt1需要多少token0
+            uint256 needBal0 = FullMath.mulDiv(debt1, sqrtPriceX96, FixedPoint96.Q96);
+            needBal0 = FullMath.mulDiv(needBal0, sqrtPriceX96, FixedPoint96.Q96);
+            if(bal0 >= needBal0){
+                bal0 = bal0.sub(needBal0);
+            }else{
+                bal0 = 0;
+            }
+        }
+        // B够还 A不够
+        if(debt1 == 0 && debt0 > 0 && bal1 > 0){
+            //计算支付debt0需要多少token1
+            uint256 needBal1 = FullMath.mulDiv(debt0, FixedPoint96.Q96, sqrtPriceX96);
+            needBal1 = FullMath.mulDiv(needBal1, FixedPoint96.Q96, sqrtPriceX96);
+            if(bal1 >= needBal1){
+                bal1 = bal1.sub(needBal1);
+            }else{
+                bal1 = 0;
+            }
+        }
+    }
+
     /// @dev 清算
     /// @param position 仓位信息.
     function _liquidate(Position memory position) internal {

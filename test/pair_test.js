@@ -155,6 +155,13 @@ describe("Pair-Test", function() {
             positionId = 1;
     });
 
+    it("13-0、close position pre", async function() {
+            let r = await pairVault.connect(operator).closePositionPre(positionId);
+            console.log("关仓预览：", r);
+    });
+
+    //closePositionPre
+
     it("13-1、calc health", async function() {
            let health = await pairVault.posHealth(positionId);
            console.log("仓位：" + positionId + "的负债率是：", health);

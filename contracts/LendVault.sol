@@ -168,10 +168,10 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         return FullMath.mulDiv(totalShare, balance, totalBal);
     }
 
-    /// @dev Return the balance of the balance in the token bank.
+    /// @dev Return the balance of the share in the token bank.
     /// @param tokenAddress the deposit token address.
     /// @param share the amount of the token.
-    function debtShareToBalance(address tokenAddress, uint256 share) public view returns(uint256) {
+    function debtShareToBalance(address tokenAddress, uint256 share) public override view returns(uint256) {
         BankInfo memory bank = banks[tokenAddress];
         if (bank.totalDebtShare == 0) {return share;}
         return bank.totalDebt.mul(share).div(bank.totalDebtShare);
@@ -263,7 +263,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
 
     /// @dev calculate interest and add to debt.
     /// @param tokenAddress the debt token address.
-    function calInterest(address tokenAddress) public {
+    function calInterest(address tokenAddress) internal {
         // 1、获取bank
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen, 'bank not exists');
@@ -374,7 +374,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         require(shareA > 0 || shareB > 0, "wrong share param!");
         require(shareA <= debtorShares[tokenA][msg.sender], "wrong share param!");
         require(shareB <= debtorShares[tokenB][msg.sender], "wrong share param!");
-        // 2、结息（等到应还金额和当前余额）
+        // 2、结息（得到应还金额和当前余额）
         (uint256 debtValueA, uint256 beforeBalA) = interestAndBal(tokenA, shareA);
         (uint256 debtValueB, uint256 beforeBalB) = interestAndBal(tokenB, shareB);
         // 3、用回调的方式去借款人处收回贷款

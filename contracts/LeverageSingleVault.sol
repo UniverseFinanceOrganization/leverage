@@ -530,6 +530,7 @@ contract LeverageSingleVault is Ownable {
     /// @dev 清算
     /// @param positionId 仓位ID.
     function liquidate(uint256 positionId) external  {
+        require(!configReader.onlyHunter() || msg.sender == configReader.hunter(), "only hunter");
         // 检查仓位状态
         Position memory position = positions[positionId];
         require(position.share > 0, "empty position");
