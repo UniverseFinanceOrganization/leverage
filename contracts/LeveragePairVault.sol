@@ -335,7 +335,9 @@ contract LeveragePairVault is Ownable {
     function payLoanLack(address token, address tokenB, uint256 restDebt, uint256 balB) public onlyLendVault {
         //先去询价restDebt个token需要多少tokenB
         uint256 swapTokenB =  _quoter(tokenB, token, restDebt);
-        if(balB < swapTokenB){
+        if(swapTokenB == 0){
+            return;
+        }else if(balB < swapTokenB){
             swapTokenB = balB;
             restDebt = 0;
         }
