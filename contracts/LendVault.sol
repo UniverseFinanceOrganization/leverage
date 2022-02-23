@@ -113,10 +113,6 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         emit ReserveDist(tokenAddress, amount);
     }
 
-    // only for emergency TODO for test
-//    function emergencyWithdraw(address tokenAddress) external onlyOwner {
-//        IERC20(tokenAddress).transfer(msg.sender, IERC20(tokenAddress).balanceOf(address(this)));
-//    }
 
     /* ========== READABLE ========== */
 
@@ -195,8 +191,8 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         uint256 pending = pendingInterest(tokenAddress);
         return banks[tokenAddress].ibToken
                                   .totalSupply()
-                                  .mul(totalBalance(tokenAddress).add(pending))
-                                  .div(withdrawableAmount);
+                                  .mul(withdrawableAmount)
+                                  .div(totalBalance(tokenAddress).add(pending));
     }
 
     /// @dev return the debtor borrow amount .
@@ -287,7 +283,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @dev add more tokens to the bank then get good returns.
     /// @param tokenAddress the deposit token address.
     /// @param amount the amount of deposit token.
-    function deposit(address tokenAddress, uint256 amount) external {
+    function deposit(address tokenAddress, uint256 amount) external nonReentrant{
         // 1、拿到bank, 检查是否开启
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen && bank.canDeposit, 'cannot deposit');
@@ -342,7 +338,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @dev Debtor can borrow tokens from bank.
     /// @param tokenAddress the borrow token address.
     /// @param loanAmount the amount of loan.
-    function issueLoan(address tokenAddress, uint256 loanAmount, address to) external onlyDebtor override returns(uint256) {
+    function issueLoan(address tokenAddress, uint256 loanAmount, address to) external onlyDebtor nonReentrant override returns(uint256) {
         // 1、获取BANK
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen && bank.canLoan, 'cannot issue loan');
@@ -369,7 +365,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     }
 
     /// @dev 还款 shareA和shareB分别对应tokenA和tokenB要还款的份额
-    function payLoan(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external onlyDebtor override{
+    function payLoan(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external onlyDebtor nonReentrant override{
 
         // 1、校验
         require(shareA > 0 || shareB > 0, "wrong share param!");
@@ -401,7 +397,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @param tokenA the debt token address.
     /// @param tokenB the token witch will be used to pay loan.
     /// @param shareA the debt share.
-    function liquidate(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external onlyDebtor override{
+    function liquidate(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external onlyDebtor nonReentrant override{
         // 1、校验
         require(shareA > 0 || shareB > 0, "wrong share!");
         require(shareA <= debtorShares[tokenA][msg.sender], "wrong share!");
@@ -452,7 +448,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @param tokenAddress the token witch will be used to fish loan.
     /// @param amount the debt share.
     /// @param data the customer data.
-    function flash(address recipient, address tokenAddress, uint256 amount, bytes calldata data) external {
+    function flash(address recipient, address tokenAddress, uint256 amount, bytes calldata data) external nonReentrant {
 
         // cal flash loan fee
         uint256 fee = amount.mul(configReader.flashBps()).div(10000);
