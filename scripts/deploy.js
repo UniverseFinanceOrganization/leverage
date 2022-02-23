@@ -15,60 +15,34 @@ async function main() {
     const InterestModel = await hre.ethers.getContractFactory("InterestModel");
     const interestModel = await InterestModel.deploy();
     await interestModel.deployed();
-    await hre.tenderly.verify({
-        name: "InterestModel",
-        address: interestModel.address
-    });
     console.log("InterestModel deployed to:", interestModel.address);
 
     const UniV3PriceOracle = await hre.ethers.getContractFactory("UniV3PriceOracle");
     const uniV3PriceOracle = await UniV3PriceOracle.deploy();
     await uniV3PriceOracle.deployed();
-    await hre.tenderly.verify({
-        name: "UniV3PriceOracle",
-        address: uniV3PriceOracle.address
-    });
     console.log("UniV3PriceOracle deployed to:", uniV3PriceOracle.address);
 
     const ProjectConfig = await hre.ethers.getContractFactory("ProjectConfig");
     //利率、清算负债率、闪电贷利率、利率模型地址、预言机地址
-    const projectConfig = await ProjectConfig.deploy(2000, 500, 20, interestModel.address, uniV3PriceOracle.address);
+    const projectConfig = await ProjectConfig.deploy(2000, 500, 20, interestModel.address, uniV3PriceOracle.address,OWNER_ADDRESS);
     await projectConfig.deployed();
-    await hre.tenderly.verify({
-        name: "ProjectConfig",
-        address: projectConfig.address
-    });
     console.log("ProjectConfig deployed to:", projectConfig.address);
-    await projectConfig.transferOwnership(OWNER_ADDRESS);
 
     const LendVault = await hre.ethers.getContractFactory("LendVault");
     const lendVault = await LendVault.deploy(projectConfig.address);
     await lendVault.deployed();
-    await hre.tenderly.verify({
-        name: "LendVault",
-        address: lendVault.address
-    });
     console.log("LendVault deployed to:", lendVault.address);
-
 
     const LeveragePairVault = await hre.ethers.getContractFactory("LeveragePairVault");
     //address _lendVault, address _router, address _quoterAddress, address _config, address _dev
     const leveragePairVault = await LeveragePairVault.deploy(lendVault.address, UNI_V3_SWAP_ROUTER, UNI_V3_QUOTER_ADDRESS, projectConfig.address, OWNER_ADDRESS);
     await leveragePairVault.deployed();
-    await hre.tenderly.verify({
-        name: "LeveragePairVault",
-        address: leveragePairVault.address
-    });
     console.log("LeveragePairVault deployed to:", leveragePairVault.address);
 
     const LeverageSingleVault = await hre.ethers.getContractFactory("LeverageSingleVault");
     //address _lendVault, address _router, address _quoterAddress, address _config, address _dev
     const leverageSingleVault = await LeverageSingleVault.deploy(lendVault.address, UNI_V3_SWAP_ROUTER, UNI_V3_QUOTER_ADDRESS, projectConfig.address, OWNER_ADDRESS);
     await leverageSingleVault.deployed();
-    await hre.tenderly.verify({
-        name: "LeverageSingleVault",
-        address: leverageSingleVault.address
-    });
     console.log("LeverageSingleVault deployed to:", leverageSingleVault.address);
 
 
@@ -76,19 +50,22 @@ async function main() {
     await lendVault.addBank(WETH_ADDRESS, 1, "iWETH", "iWETH");
     await lendVault.addBank(USDC_ADDRESS, 1, "iUSDC", "iUSDC");
     await lendVault.addBank(LOOKS_ADDRESS, 2, "iLOOKS", "iLOOKS");
+    console.log("lend vault add bank success");
 
     // 借贷金库把杠杆金库加入白名单
     await lendVault.setDebtor(leveragePairVault.address, true);
     await lendVault.setDebtor(leverageSingleVault.address, true);
+    console.log("leverage vault set debtor success");
 
     // 杠杆双币金库增加借贷挖矿池
     await leveragePairVault.addPool(100, UNIVERSE_POOL_WETH_LOOKS, 6000, 9000);
+    console.log("leverage pair vault add pool success");
 
     // 杠杆单币金库增加借贷挖矿池
     // 最大价差/10000，是否池子token0，池子地址，开仓借贷占比/10000，强平借贷占比/10000
     await leverageSingleVault.addPool(100, true, UNIVERSE_POOL_USDC_WETH, 6000, 9000);
     await leverageSingleVault.addPool(100, false, UNIVERSE_POOL_USDC_WETH, 6000, 9000)
-    console.log("singleVault add pool success");
+    console.log("leverage single vault add pool success");
 
     // 金库owner转移至测试账号
     await projectConfig.transferOwnership(OWNER_ADDRESS);
