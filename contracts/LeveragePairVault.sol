@@ -77,6 +77,7 @@ contract LeveragePairVault is Ownable {
     // Approve Status  token => vault
     mapping(address => mapping(address => bool)) public approveStatus;
 
+    // cache
     uint24 public swapFee;
     address private requestPoolAddress;
 
@@ -250,8 +251,8 @@ contract LeveragePairVault is Ownable {
         PoolInfo memory pool = pools[address(_vault)];
         // 1.get price
         uint256 priceX96 = _priceX96(_poolAddress);
-        // 2. get avg price for 3、6、9 seconds ago
-        uint256 secondsAgoPriceX96 = IPriceOracle(configReader.getOracle()).getPrice(_poolAddress, 3, 3);
+        // 2. get avg price for 20、40、60 seconds ago
+        uint256 secondsAgoPriceX96 = IPriceOracle(configReader.getOracle()).getPrice(_poolAddress, 20, 3);
         // 3. set max price diff
         uint256 maxPriceDiff = pool.maxPriceDiff;
         // 4. check price
@@ -486,12 +487,11 @@ contract LeveragePairVault is Ownable {
     function closePositionPre(uint256 positionId) external view returns(uint256 bal0, uint256 bal1){
         // Check Owner Address
         Position memory position = positions[positionId];
-        require(position.owner == msg.sender, "10");
-        require(position.share > 0, "11");
+        if(position.share == 0){
+            return (0,0);
+        }
 
         PoolInfo memory pool = pools[position.vaultAddress];
-        IERC20 token0 = IERC20(pool.token0);
-        IERC20 token1 = IERC20(pool.token1);
 
         (bal0, bal1) = pool.vault.calBalance(position.share);
 
