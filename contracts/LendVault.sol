@@ -22,7 +22,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     IProjectConfig public configReader;
 
     struct BankInfo {
-        bool isOpen;
+        bool isOpen; //
         bool canDeposit;
         bool canWithdraw;
         bool canLoan;
@@ -50,7 +50,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
 
     ///借款人白名单
     modifier onlyDebtor {
-        require(debtorWhitelists[msg.sender], "not in whiteLIst");
+        require(debtorWhitelists[msg.sender], "not in whiteList");
         _;
     }
 
@@ -105,6 +105,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         debtorWhitelists[debtorAddress] = canBorrow;
     }
 
+    //释放储备金分给所有存款用户
     function reserveDistribution(address tokenAddress, uint256 amount) external onlyOwner {
         BankInfo storage bank = banks[tokenAddress];
         require(bank.totalReserve >= amount, "invalid param");
@@ -113,9 +114,9 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     }
 
     // only for emergency TODO for test
-    function emergencyWithdraw(address tokenAddress) external onlyOwner {
-        IERC20(tokenAddress).transfer(msg.sender, IERC20(tokenAddress).balanceOf(address(this)));
-    }
+//    function emergencyWithdraw(address tokenAddress) external onlyOwner {
+//        IERC20(tokenAddress).transfer(msg.sender, IERC20(tokenAddress).balanceOf(address(this)));
+//    }
 
     /* ========== READABLE ========== */
 
@@ -174,7 +175,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     function debtShareToBalance(address tokenAddress, uint256 share) public override view returns(uint256) {
         BankInfo memory bank = banks[tokenAddress];
         if (bank.totalDebtShare == 0) {return share;}
-        return bank.totalDebt.mul(share).div(bank.totalDebtShare);
+        return FullMath.mulDiv(bank.totalDebt ,share, bank.totalDebtShare);
     }
 
     /// @dev calculate debt share.
@@ -183,7 +184,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     function balanceToDebtShare(address tokenAddress, uint256 balance) public view returns(uint256) {
         BankInfo memory bank = banks[tokenAddress];
         if (bank.totalDebt == 0) {return balance;}
-        return bank.totalDebtShare.mul(balance).div(bank.totalDebt);
+        return FullMath.mulDiv(bank.totalDebtShare, balance, bank.totalDebt);
     }
 
     /// @dev can withdraw max share amount.
@@ -194,8 +195,8 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         uint256 pending = pendingInterest(tokenAddress);
         return banks[tokenAddress].ibToken
                                   .totalSupply()
-                                  .mul(withdrawableAmount)
-                                  .div(totalBalance(tokenAddress).add(pending));
+                                  .mul(totalBalance(tokenAddress).add(pending))
+                                  .div(withdrawableAmount);
     }
 
     /// @dev return the debtor borrow amount .
@@ -234,8 +235,8 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
 
     // 结息并返回share对应的应还金额和当前token的余额
     function interestAndBal(address token, uint256 share) internal returns(uint256, uint256){
+        calInterest(token);
         if(share > 0){
-            calInterest(token);
             return (debtShareToBalance(token, share), idleBalance(token));
         }else{
             return (0, idleBalance(token));

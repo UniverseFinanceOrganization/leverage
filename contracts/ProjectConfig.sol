@@ -10,12 +10,11 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 contract ProjectConfig is IProjectConfig, Ownable {
     using SafeMath for uint256;
 
-    uint256 public override interestBps; // 2000  /   10000
-    uint256 public override liquidateBps; // 500  /   10000
-    uint256 public override flashBps; // 20 / 10000
+    uint256 public override interestBps; // protocol fee： 2000/10000
+    uint256 public override liquidateBps; // liquidate fee： 500/10000
+    uint256 public override flashBps; // 20/10000
 
     IInterestModel public interestModel;
-
     IPriceOracle private oracle;
 
     address public override hunter;

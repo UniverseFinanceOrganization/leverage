@@ -354,10 +354,6 @@ contract LeveragePairVault is Ownable {
     /* ========== WRITEABLE ========== */
 
     /// @dev open position
-    /// @param token0Amount .
-    /// @param token1Amount .
-    /// @param token0Debt .
-    /// @param token1Debt .
     function openPosition(
         address _vaultAddress,
         uint256 token0Amount,
@@ -402,9 +398,6 @@ contract LeveragePairVault is Ownable {
     }
 
     /// @dev cover position
-    /// @param positionId .
-    /// @param token0Amount .
-    /// @param token1Amount .
     function coverPosition(
         uint256 positionId,
         uint256 token0Amount,
@@ -443,8 +436,6 @@ contract LeveragePairVault is Ownable {
     }
 
     /// @dev close position
-    /// @param position
-    /// @param share
     function _closePosition(Position memory position, uint share) internal {
         PoolInfo memory pool = pools[position.vaultAddress];
         // go to withdraw
@@ -461,7 +452,6 @@ contract LeveragePairVault is Ownable {
     }
 
     /// @dev close position
-    /// @param positionId
     function closePosition(uint256 positionId) external {
         // Check Owner Address
         Position memory position = positions[positionId];
@@ -493,8 +483,6 @@ contract LeveragePairVault is Ownable {
 
     }
 
-    /// @dev
-    /// @param
     function closePositionPre(uint256 positionId) external view returns(uint256 bal0, uint256 bal1){
         // Check Owner Address
         Position memory position = positions[positionId];
@@ -560,7 +548,6 @@ contract LeveragePairVault is Ownable {
     }
 
     /// @dev liquidate
-    /// @param position
     function _liquidate(Position memory position) internal {
 
         PoolInfo memory pool = pools[position.vaultAddress];
@@ -576,7 +563,6 @@ contract LeveragePairVault is Ownable {
     }
 
     /// @dev liquidate
-    /// @param positionId .
     function liquidate(uint256 positionId) external  {
         require(!configReader.onlyHunter() || msg.sender == configReader.hunter(), "13");
         Position memory position = positions[positionId];
