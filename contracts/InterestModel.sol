@@ -15,9 +15,9 @@ contract InterestModel is IInterestModel {
         } else if (utilization < 80e18) {
             return (10e16 + utilization.sub(50e18).mul(10e16).div(30e18)) / 365 days;
         } else if (utilization < 90e18) {
-            return (20e16 + utilization.sub(80e18).mul(10e16).div(10e18)) / 365 days;
+            return (20e16 + utilization.sub(80e18).mul(20e16).div(10e18)) / 365 days;
         } else if (utilization < 100e18) {
-            return (30e16 + utilization.sub(90e18).mul(120e16).div(10e18)) / 365 days;
+            return (40e16 + utilization.sub(90e18).mul(110e16).div(10e18)) / 365 days;
         } else {
             return uint(150e16) / 365 days;
         }
@@ -29,11 +29,11 @@ contract InterestModel is IInterestModel {
         } else if (utilization < 80e18) {
             return (10e16 + utilization.sub(50e18).mul(10e16).div(30e18)) / 365 days;
         } else if (utilization < 90e18) {
-            return (20e16 + utilization.sub(80e18).mul(10e16).div(10e18)) / 365 days;
+            return (20e16 + utilization.sub(80e18).mul(15e16).div(10e18)) / 365 days;
         } else if (utilization < 100e18) {
-            return (30e16 + utilization.sub(90e18).mul(50e16).div(10e18)) / 365 days;
+            return (35e16 + utilization.sub(90e18).mul(80e16).div(10e18)) / 365 days;
         } else {
-            return uint(150e16) / 365 days;
+            return uint(115e16) / 365 days;
         }
     }
 
@@ -45,9 +45,9 @@ contract InterestModel is IInterestModel {
         } else if (utilization < 90e18) {
             return (20e16 + utilization.sub(80e18).mul(10e16).div(10e18)) / 365 days;
         } else if (utilization < 100e18) {
-            return (30e16 + utilization.sub(90e18).mul(20e16).div(10e18)) / 365 days;
+            return (30e16 + utilization.sub(90e18).mul(50e16).div(10e18)) / 365 days;
         } else {
-            return uint(150e16) / 365 days;
+            return uint(80e16) / 365 days;
         }
     }
 
