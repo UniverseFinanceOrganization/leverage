@@ -114,6 +114,24 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     }
 
 
+    function withdrawReserve(address tokenAddress, uint256 amt, address to) external onlyOwner {
+        BankInfo memory bank = banks[tokenAddress];
+        require(bank.totalReserve >= amt, "invalid param");
+        uint256 res = bank.totalReserve;
+        if(res < amt){
+            amt = res;
+        }
+        IERC20 token = IERC20(tokenAddress);
+        uint256 bal = token.balanceOf(address(this));
+        if(bal < amt){
+            amt = bal;
+        }
+        if(amt > 0){
+            banks[tokenAddress].totalReserve = bank.totalReserve.sub(amt);
+            token.safeTransfer(msg.sender, amt);
+        }
+    }
+
     /* ========== READABLE ========== */
 
     function ibShare(address tokenAddress, address user) public view override returns(uint256) {

@@ -66,7 +66,7 @@ module.exports = {
             blockGasLimit: 12000000,
             hardfork: 'london',
             gas: 8000000,           // Gas sent with each transaction (default: ~6700000)
-            gasPrice: 60e9
+            gasPrice: 80e9
         },
 
         tenderly: {
@@ -82,7 +82,7 @@ module.exports = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 1
+                        runs: 200
                     }
                 }
             },
@@ -91,7 +91,7 @@ module.exports = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 100
+                        runs: 200
                     }
                 }
             },
@@ -100,7 +100,7 @@ module.exports = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 100
+                        runs: 200
                     }
                 }
             },
@@ -109,7 +109,7 @@ module.exports = {
                 settings: {
                    optimizer: {
                        enabled: true,
-                       runs: 100
+                       runs: 200
                    }
                 }
             },
@@ -118,7 +118,7 @@ module.exports = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 100
+                        runs: 200
                     }
                 }
             }
