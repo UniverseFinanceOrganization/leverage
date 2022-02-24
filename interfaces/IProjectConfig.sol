@@ -17,4 +17,7 @@ interface IProjectConfig {
 
     function onlyHunter() external view returns (bool);
 
+    function setSecondAgo(address _poolAddress, uint8[2] memory params) external;
+
+    function getSecondAgo(address _poolAddress) external view returns(uint8 second, uint8 num);
 }

@@ -26,7 +26,7 @@ describe("Pair-Test", function() {
     ethers.provider = provider;
 
     let interestModel, oracle, config, lendVault, pairVault, vault, test;
-    let weth, looks, vaultOwner;
+    let weth, looks, vaultOwner, owner;
     let wethAccount, looksAccount, sunAccount;
     let positionId;
 
@@ -108,7 +108,7 @@ describe("Pair-Test", function() {
     });
 
     it("8、add pool", async function() {
-        await pairVault.addPool(500, VAULT_ADDRESS, 8500, 9000);
+        await pairVault.addPool(2000, VAULT_ADDRESS, 8500, 9000);
     });
 
     it("9、get contract", async function() {
@@ -140,6 +140,27 @@ describe("Pair-Test", function() {
         await looks.connect(operator).approve(lendVault.address, ethers.utils.parseEther("1000000000000.0"));
         await lendVault.connect(operator).deposit(WETH_ADDRESS, ethers.utils.parseEther("5000.0"));
         await lendVault.connect(operator).deposit(LOOKS_ADDRESS, ethers.utils.parseUnits("500000.0", 18));
+        await lendVault.connect(operator).deposit(WETH_ADDRESS, ethers.utils.parseEther("0.0"));
+        await lendVault.connect(operator).deposit(LOOKS_ADDRESS, ethers.utils.parseUnits("0.0", 18));
+    });
+
+    it("12-1、set config", async function() {
+        let ownerAddress = await config.owner();
+        owner = await ethers.provider.getSigner(ownerAddress);
+        await config.connect(owner).setSecondAgo(POOL_ADDRESS, [3,3]);
+    });
+
+    it("13-0、open position", async function() {
+            let token0Amount = ethers.utils.parseEther("0");
+            let token1Amount = ethers.utils.parseEther("0");
+            let token0Debt = ethers.utils.parseEther("0");
+            let token1Debt = ethers.utils.parseEther("0");
+            await weth.connect(operator).approve(pairVault.address, ethers.utils.parseEther("1000000000000.0"));
+            await looks.connect(operator).approve(pairVault.address, ethers.utils.parseEther("1000000000000.0"));
+            //vault 添加白名单
+            await vault.connect(vaultOwner).updateWhiteList(pairVault.address, true);
+            await pairVault.connect(operator).openPosition(VAULT_ADDRESS, token0Amount, token1Amount, token0Debt, token1Debt);
+            //positionId = 1;
     });
 
     it("13、open position", async function() {
@@ -157,43 +178,56 @@ describe("Pair-Test", function() {
 
     it("13-0、close position pre", async function() {
             let r = await pairVault.connect(operator).closePositionPre(positionId);
-            console.log("关仓预览：", r);
+            //console.log("关仓预览：", r);
     });
 
     //closePositionPre
 
     it("13-1、calc health", async function() {
            let health = await pairVault.posHealth(positionId);
-           console.log("仓位：" + positionId + "的负债率是：", health);
+           //console.log("仓位：" + positionId + "的负债率是：", health);
     });
 
     it("13-3、chang price up 50%", async function() {
            let uniswapV3Pool = await ethers.getContractAt("IUniswapV3Pool", POOL_ADDRESS);
            let slot0 = await uniswapV3Pool.slot0();
            let currentTick = slot0[1];
-           console.log("current tick:", currentTick);
+           //console.log("current tick:", currentTick);
            //价格变化50%，tick + 4055   价格反7倍 tick + 20000
            let targetTick = currentTick - 12000;
            console.log("targetTick tick:", targetTick);
 
-           let _amountIn = ethers.utils.parseEther("50000000.0");
+           let _amountIn = ethers.utils.parseEther("3000.0");
 
-           await looks.connect(operator).transfer(testTick.address, _amountIn);
+           await weth.connect(operator).transfer(testTick.address, _amountIn);
 
-           await testTick.connect(operator).swap(POOL_ADDRESS, false, _amountIn, OPERATOR_ADDRESS, targetTick);
+           await testTick.connect(operator).swap(POOL_ADDRESS, true, _amountIn, OPERATOR_ADDRESS, targetTick);
 
            slot0 = await uniswapV3Pool.slot0();
            currentTick = slot0[1];
            console.log("current tick:", currentTick);
 
            let health = await pairVault.posHealth(positionId);
-           console.log("仓位：" + positionId + "的负债率是：", health);
+           //console.log("仓位：" + positionId + "的负债率是：", health);
     });
 
     it("13-5、close position pre", async function() {
+            let pos = await pairVault.positions(positionId);
+            //console.log("pos：", pos);
+            let bal = await vault.calBalance(pos.share);
+            //console.log("bal：", bal);
+
+            let debt0 = await lendVault.debtShareToBalance(WETH_ADDRESS, pos.debtShare0);
+            let debt1 = await lendVault.debtShareToBalance(LOOKS_ADDRESS, pos.debtShare1);
+
+            //console.log("debt0：", debt0);
+            //console.log("debt1：", debt1);
+
             let r = await pairVault.connect(operator).closePositionPre(positionId);
-            console.log("关仓预览：", r);
+            //console.log("关仓预览：", r);
     });
+
+    sleep(60000);
 
     it.skip("14、cover position", async function() {
             let token0Amount = ethers.utils.parseEther("10");

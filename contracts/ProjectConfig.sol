@@ -20,6 +20,8 @@ contract ProjectConfig is IProjectConfig, Ownable {
     address public override hunter;
     bool public override onlyHunter = true;
 
+    mapping(address=>uint8[2]) private secondAgo;
+
     constructor(
         uint256 _interestBps,
         uint256 _liquidateBps,
@@ -64,6 +66,18 @@ contract ProjectConfig is IProjectConfig, Ownable {
         bool _onlyHunter
     ) external onlyOwner {
         onlyHunter = _onlyHunter;
+    }
+
+    function setSecondAgo(address _poolAddress, uint8[2] memory params) external override onlyOwner{
+        require(_poolAddress != address(0),"ZERO");
+        require(params[0] <= 1200 && params[1] <= 3, "params err");
+        secondAgo[_poolAddress] = params;
+    }
+
+    function getSecondAgo(address _poolAddress) external override view returns(uint8 second, uint8 num){
+        uint8[2] memory _secondAgo = secondAgo[_poolAddress];
+        second = (_secondAgo[0] == 0 ? 20 : _secondAgo[0]);
+        num = (_secondAgo[1] == 0 ? 3 : _secondAgo[1]);
     }
 
     /// 计算利率 系数: 1E18

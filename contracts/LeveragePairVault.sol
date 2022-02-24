@@ -127,7 +127,7 @@ contract LeveragePairVault is Ownable {
         uint256 _liquidateFactor
     ) external onlyOwner {
         require(_openFactor < _liquidateFactor && _liquidateFactor < 10000
-            && _maxPriceDiff > 0 && _maxPriceDiff < 1000, "7");
+            && _maxPriceDiff > 0 && _maxPriceDiff <= 2000, "7");
         PoolInfo memory pool = pools[_vaultAddress];
         require(!pool.isOpen, '6');
 
@@ -169,7 +169,7 @@ contract LeveragePairVault is Ownable {
         uint256 _liquidateFactor
     ) external onlyOwner {
         require(_openFactor < _liquidateFactor && _liquidateFactor < 10000
-                && _maxPriceDiff > 0 && _maxPriceDiff < 1000 , "7");
+                && _maxPriceDiff > 0 && _maxPriceDiff <= 2000 , "7");
         PoolInfo storage pool = pools[_vaultAddress];
         require(pool.isOpen, '6');
         pool.canFarm = canFarm;
@@ -252,7 +252,8 @@ contract LeveragePairVault is Ownable {
         // 1.get price
         uint256 priceX96 = _priceX96(_poolAddress);
         // 2. get avg price for 20、40、60 seconds ago
-        uint256 secondsAgoPriceX96 = IPriceOracle(configReader.getOracle()).getPrice(_poolAddress, 20, 3);
+        (uint8 second, uint8 num) = configReader.getSecondAgo(_poolAddress);
+        uint256 secondsAgoPriceX96 = IPriceOracle(configReader.getOracle()).getPrice(_poolAddress, second, num);
         // 3. set max price diff
         uint256 maxPriceDiff = pool.maxPriceDiff;
         // 4. check price
@@ -363,6 +364,7 @@ contract LeveragePairVault is Ownable {
         uint256 token1Debt
     ) external {
         require(_vaultAddress != address(0), "5");
+        require(token0Amount > 0 && token1Amount > 0, "7");
         IUniversePairVault _vault = IUniversePairVault(_vaultAddress);
         PoolInfo memory pool = pools[_vaultAddress];
         require(pool.isOpen && pool.canFarm, "0");
@@ -527,8 +529,8 @@ contract LeveragePairVault is Ownable {
 
         //
         if(debt0 == 0 && debt1 > 0 && bal0 > 0){
-            uint256 needBal0 = FullMath.mulDiv(debt1, sqrtPriceX96, FixedPoint96.Q96);
-            needBal0 = FullMath.mulDiv(needBal0, sqrtPriceX96, FixedPoint96.Q96);
+            uint256 needBal0 = FullMath.mulDiv(debt1, FixedPoint96.Q96, sqrtPriceX96);
+            needBal0 = FullMath.mulDiv(needBal0, FixedPoint96.Q96, sqrtPriceX96);
             if(bal0 >= needBal0){
                 bal0 = bal0.sub(needBal0);
             }else{
@@ -537,8 +539,8 @@ contract LeveragePairVault is Ownable {
         }
         //
         if(debt1 == 0 && debt0 > 0 && bal1 > 0){
-            uint256 needBal1 = FullMath.mulDiv(debt0, FixedPoint96.Q96, sqrtPriceX96);
-            needBal1 = FullMath.mulDiv(needBal1, FixedPoint96.Q96, sqrtPriceX96);
+            uint256 needBal1 = FullMath.mulDiv(debt0, sqrtPriceX96, FixedPoint96.Q96);
+            needBal1 = FullMath.mulDiv(needBal1, sqrtPriceX96, FixedPoint96.Q96);
             if(bal1 >= needBal1){
                 bal1 = bal1.sub(needBal1);
             }else{
@@ -642,6 +644,7 @@ contract LeveragePairVault is Ownable {
     /* ========== CALLBACK ========== */
 
     function payLoanCallback(address tokenA, address tokenB, uint256 debtValueA, uint256 debtValueB) external onlyLendVault {
+        //够还的直接还，不够还的记账待会再还
         (uint256 balA, uint256 restDebtA) = payLoanEnough(tokenA, debtValueA);
         (uint256 balB, uint256 restDebtB) = payLoanEnough(tokenB, debtValueB);
 
