@@ -49,6 +49,7 @@ contract LeveragePairVault is Ownable {
         address token0;
         address token1;
         IUniversePairVault vault;
+        IERC20 shareToken;
         uint64  maxPriceDiff; //prevent price attack
         uint256 share; //the share of this pool in universe vault
         uint256 openFactor;
@@ -118,11 +119,13 @@ contract LeveragePairVault is Ownable {
     /// @dev the vault must be Universe Finance pair vault
     /// @param _maxPriceDiff The max price offset will be allowed
     /// @param _vaultAddress The address of the pair vault
+    /// @param _shareAddress The address of the share
     /// @param _openFactor The max Factor be allowed when open position
     /// @param _liquidateFactor The min Factor when liquidate a position
     function addPool(
         uint64 _maxPriceDiff,
         address _vaultAddress,
+        address _shareAddress,
         uint256 _openFactor,
         uint256 _liquidateFactor
     ) external onlyOwner {
@@ -136,7 +139,11 @@ contract LeveragePairVault is Ownable {
         address token0 = address(vault.token0());
         address token1 = address(vault.token1());
 
-        _tokenApprove(_vaultAddress, _vaultAddress);
+        if(_shareAddress != address(0)){
+            _tokenApprove(_shareAddress, _vaultAddress);
+        }else{
+            _tokenApprove(_vaultAddress, _vaultAddress);
+        }
 
         _tokenApprove(token0, _vaultAddress);
         _tokenApprove(token1, _vaultAddress);
@@ -149,6 +156,7 @@ contract LeveragePairVault is Ownable {
         poolIndex[currentPid++] = _vaultAddress;
 
         pool.vault = vault;
+        pool.shareToken = IERC20(_shareAddress);
         pool.isOpen = true;
         pool.canFarm = true;
         pool.token0 = token0;
@@ -185,7 +193,7 @@ contract LeveragePairVault is Ownable {
         if (pool.share == 0) {return (0, 0);}
 
         (uint256 reserve0, uint256 reserve1,,,,) = pool.vault.getTotalAmounts();
-        uint256 totalSupply = pool.vault.totalSupply();
+        uint256 totalSupply = pool.shareToken.totalSupply();
 
         uint256 amount0 = _lpShare.mul(reserve0).div(totalSupply);
         uint256 amount1 = _lpShare.mul(reserve1).div(totalSupply);
@@ -228,9 +236,9 @@ contract LeveragePairVault is Ownable {
         uint256 debt1
     )  internal view returns(uint256) {
         if(debt0 == 0 && debt1 == 0){
-            return 10000;
+            return 0;
         }
-        (,,address _poolAddress,,,,) = _vault.positionList(0);
+        (,address _poolAddress,,,,,) = _vault.positionList(0);
         uint256 priceX96 = _priceX96(_poolAddress);
 
         uint256 userNv = oneTokenAmount(amount0, amount1, priceX96);
@@ -247,7 +255,7 @@ contract LeveragePairVault is Ownable {
 
     /// @dev Return whether the given goblin is stable, presumably not under manipulation.
     function isStable(IUniversePairVault _vault) internal view returns (bool) {
-        (,,address _poolAddress,,,,) = _vault.positionList(0);
+        (,address _poolAddress,,,,,) = _vault.positionList(0);
         PoolInfo memory pool = pools[address(_vault)];
         // 1.get price
         uint256 priceX96 = _priceX96(_poolAddress);
@@ -281,7 +289,7 @@ contract LeveragePairVault is Ownable {
 
     function withdraw(IUniversePairVault _vault, uint256 share) internal {
         //先看有多少ULP
-        uint256 ulpAmount = _vault.balanceOf(address(this));
+        (uint256 ulpAmount, ) = _vault.getUserShares(address(this));
         if(share > ulpAmount){
             share = ulpAmount;
         }
@@ -523,7 +531,7 @@ contract LeveragePairVault is Ownable {
         if(debt0 > 0 && debt1 > 0){
             return (bal0, bal1);
         }
-        (,,address poolAddress,,,,) = pool.vault.positionList(0);
+        (,address poolAddress,,,,,) = pool.vault.positionList(0);
         (,int24 tick,,,,,) = IUniswapV3Pool(poolAddress).slot0();
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
 
@@ -637,7 +645,7 @@ contract LeveragePairVault is Ownable {
     }
 
     function updateSwapInfo(PoolInfo memory pool) internal {
-        (,,requestPoolAddress,,,,) = pool.vault.positionList(0);
+        (,requestPoolAddress,,,,,) = pool.vault.positionList(0);
         swapFee = IUniswapV3Pool(requestPoolAddress).fee();
     }
 

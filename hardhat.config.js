@@ -46,7 +46,7 @@ module.exports = {
             hardfork: 'london',
             chainId: 1,
             gas: 8500000,           // Gas sent with each transaction (default: ~6700000)
-            gasPrice: 65e9
+            gasPrice: 60e9
         },
 
         hardhat: {
@@ -60,13 +60,14 @@ module.exports = {
         },
 
         polygon: {
-            url: 'https://polygon-rpc.com/',
+            //url: 'https://rpc.ankr.com/polygon',
+            url: 'https://polygon-mainnet.g.alchemy.com/v2/p9jd34UD8CBUYqkRrFrnrgTauqxkjLPE/',
             accounts: [PRIVATE_KEY],
             chainId: 137,
             blockGasLimit: 12000000,
             hardfork: 'london',
             gas: 8000000,           // Gas sent with each transaction (default: ~6700000)
-            gasPrice: 80e9
+            gasPrice: 60e9
         },
 
         tenderly: {

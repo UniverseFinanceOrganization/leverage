@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title The interface for a Universe Vault
 /// @notice A UniswapV3 optimizer with smart rebalance strategy
-interface IUniversePairVault is IERC20{
+interface IUniversePairVault{
 
     /// @notice The first of the two tokens of the pool, sorted by address
     /// @return The token contract address
@@ -22,21 +22,14 @@ interface IUniversePairVault is IERC20{
 
     /// @notice Returns data about a specific position index
     /// @param index The element of the positions array to fetch
-    /// @return principal0 not used,
-    /// Returns principal1 not used,
-    /// Returns poolAddress The uniV3 pool address of the position,
-    /// Returns lowerTick The lower tick of the position,
-    /// Returns upperTick The upper tick of the position,
-    /// Returns tickSpacing The uniV3 pool tickSpacing,
-    /// Returns status The status of the position
     function positionList(uint256 index) external view returns (
-        uint128 principal0,
-        uint128 principal1,
+        uint256 tokenId,
         address poolAddress,
         int24 lowerTick,
         int24 upperTick,
         int24 tickSpacing,
-        bool status
+        int24 positionTick,
+        uint128 liquidity
     );
 
     /// @notice Get the vault's total balance of token0 and token1
@@ -131,4 +124,13 @@ interface IUniversePairVault is IERC20{
 
 
     function updateWhiteList(address _address, bool status) external;
+
+    function forceReBalance(
+        uint256 idx,
+        int24 _lowerTick,
+        int24 _upperTick,
+        int24 _tick
+    ) external;
+
+    function operate(uint8 otype, address p0, address p1) external;
 }

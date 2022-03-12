@@ -243,7 +243,9 @@ describe("Pair-Test", function() {
             await pairVault.connect(operator).liquidate(positionId);
     });
 
-
+    it("17、withdraw fee", async function() {
+            await lendVault.connect(owner).withdrawReserve(WETH_ADDRESS, 1, OPERATOR_ADDRESS);
+    });
 
 
 
