@@ -27,9 +27,9 @@ const USER_USER1 = "0x08230c1628cc6fe1bbe005e03f10ae96c244778a";
 const USER_USER2 = "0xa961cd7aac1a703de7a7bc970541e54db4fb453c";
 const USER_SWAPPER = "0x72d2be90fcd6b454948db72e8a681979e36815af";
 
+const UINT256_MAX = util.parseUnits("115792089237316195423570985008687907853269984665640564039457584007913129639935", 0);
 
 const x96 = util.parseUnits("2", 0).pow(96);
-
 
 describe("Pair-Vault-Test", function () {
 
@@ -226,75 +226,75 @@ describe("Pair-Vault-Test", function () {
         await looks.connect(looksAccount).transfer(USER_SWAPPER, ethers.utils.parseUnits("40000000", 18));
         console.log("set balance looks success");
 
-        await weth.connect(user1).approve(LEND_VAULT_ADDRESS, await weth.balanceOf(USER_USER1));
-        await weth.connect(user2).approve(LEND_VAULT_ADDRESS, await weth.balanceOf(USER_USER2));
-        await weth.connect(swapper).approve(LEND_VAULT_ADDRESS, await weth.balanceOf(USER_SWAPPER));
+        await weth.connect(user1).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await weth.connect(user2).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await weth.connect(swapper).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
 
-        await usdc.connect(user1).approve(LEND_VAULT_ADDRESS, await usdc.balanceOf(USER_USER1));
-        await usdc.connect(user2).approve(LEND_VAULT_ADDRESS, await usdc.balanceOf(USER_USER2));
-        await usdc.connect(swapper).approve(LEND_VAULT_ADDRESS, await usdc.balanceOf(USER_SWAPPER));
+        await usdc.connect(user1).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await usdc.connect(user2).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await usdc.connect(swapper).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
 
-        await usdt.connect(user1).approve(LEND_VAULT_ADDRESS, await usdt.balanceOf(USER_USER1));
-        await usdt.connect(user2).approve(LEND_VAULT_ADDRESS, await usdt.balanceOf(USER_USER2));
-        await usdt.connect(swapper).approve(LEND_VAULT_ADDRESS, await usdt.balanceOf(USER_SWAPPER));
+        await usdt.connect(user1).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await usdt.connect(user2).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await usdt.connect(swapper).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
 
-        await looks.connect(user1).approve(LEND_VAULT_ADDRESS, await looks.balanceOf(USER_USER1));
-        await looks.connect(user2).approve(LEND_VAULT_ADDRESS, await looks.balanceOf(USER_USER2));
-        await looks.connect(swapper).approve(LEND_VAULT_ADDRESS, await looks.balanceOf(USER_SWAPPER));
+        await looks.connect(user1).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await looks.connect(user2).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
+        await looks.connect(swapper).approve(LEND_VAULT_ADDRESS, UINT256_MAX);
 
         console.log("approve for lendVault success");
 
-        await weth.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await weth.balanceOf(USER_USER1));
-        await weth.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await weth.balanceOf(USER_USER2));
-        await weth.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await weth.balanceOf(USER_SWAPPER));
+        await weth.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await weth.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await weth.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
 
-        await usdc.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await usdc.balanceOf(USER_USER1));
-        await usdc.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await usdc.balanceOf(USER_USER2));
-        await usdc.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await usdc.balanceOf(USER_SWAPPER));
+        await usdc.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await usdc.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await usdc.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
 
-        await usdt.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await usdt.balanceOf(USER_USER1));
-        await usdt.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await usdt.balanceOf(USER_USER2));
-        await usdt.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await usdt.balanceOf(USER_SWAPPER));
+        await usdt.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await usdt.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await usdt.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
 
-        await looks.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await looks.balanceOf(USER_USER1));
-        await looks.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await looks.balanceOf(USER_USER2));
-        await looks.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, await looks.balanceOf(USER_SWAPPER));
+        await looks.connect(user1).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await looks.connect(user2).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
+        await looks.connect(swapper).approve(LEVERAGE_PAIR_VAULT_ADDRESS, UINT256_MAX);
 
         console.log("approve for pairVault success");
 
-        await weth.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await weth.balanceOf(USER_USER1));
-        await weth.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await weth.balanceOf(USER_USER2));
-        await weth.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await weth.balanceOf(USER_SWAPPER));
+        await weth.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await weth.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await weth.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
 
-        await usdc.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await usdc.balanceOf(USER_USER1));
-        await usdc.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await usdc.balanceOf(USER_USER2));
-        await usdc.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await usdc.balanceOf(USER_SWAPPER));
+        await usdc.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await usdc.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await usdc.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
 
-        await usdt.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await usdt.balanceOf(USER_USER1));
-        await usdt.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await usdt.balanceOf(USER_USER2));
-        await usdt.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await usdt.balanceOf(USER_SWAPPER));
+        await usdt.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await usdt.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await usdt.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
 
-        await looks.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await looks.balanceOf(USER_USER1));
-        await looks.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await looks.balanceOf(USER_USER2));
-        await looks.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, await looks.balanceOf(USER_SWAPPER));
+        await looks.connect(user1).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await looks.connect(user2).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
+        await looks.connect(swapper).approve(LEVERAGE_SINGLE_VAULT_ADDRESS, UINT256_MAX);
 
         console.log("approve for singleVault success");
 
-        await weth.connect(user1).approve(TEST_TICK_ADDRESS, await weth.balanceOf(USER_USER1));
-        await weth.connect(user2).approve(TEST_TICK_ADDRESS, await weth.balanceOf(USER_USER2));
-        await weth.connect(swapper).approve(TEST_TICK_ADDRESS, await weth.balanceOf(USER_SWAPPER));
+        await weth.connect(user1).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await weth.connect(user2).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await weth.connect(swapper).approve(TEST_TICK_ADDRESS, UINT256_MAX);
 
-        await usdc.connect(user1).approve(TEST_TICK_ADDRESS, await usdc.balanceOf(USER_USER1));
-        await usdc.connect(user2).approve(TEST_TICK_ADDRESS, await usdc.balanceOf(USER_USER2));
-        await usdc.connect(swapper).approve(TEST_TICK_ADDRESS, await usdc.balanceOf(USER_SWAPPER));
+        await usdc.connect(user1).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await usdc.connect(user2).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await usdc.connect(swapper).approve(TEST_TICK_ADDRESS, UINT256_MAX);
 
-        await usdt.connect(user1).approve(TEST_TICK_ADDRESS, await usdt.balanceOf(USER_USER1));
-        await usdt.connect(user2).approve(TEST_TICK_ADDRESS, await usdt.balanceOf(USER_USER2));
-        await usdt.connect(swapper).approve(TEST_TICK_ADDRESS, await usdt.balanceOf(USER_SWAPPER));
+        await usdt.connect(user1).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await usdt.connect(user2).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await usdt.connect(swapper).approve(TEST_TICK_ADDRESS, UINT256_MAX);
 
-        await looks.connect(user1).approve(TEST_TICK_ADDRESS, await looks.balanceOf(USER_USER1));
-        await looks.connect(user2).approve(TEST_TICK_ADDRESS, await looks.balanceOf(USER_USER2));
-        await looks.connect(swapper).approve(TEST_TICK_ADDRESS, await looks.balanceOf(USER_SWAPPER));
+        await looks.connect(user1).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await looks.connect(user2).approve(TEST_TICK_ADDRESS, UINT256_MAX);
+        await looks.connect(swapper).approve(TEST_TICK_ADDRESS, UINT256_MAX);
 
         console.log("approve for testTick success");
 
