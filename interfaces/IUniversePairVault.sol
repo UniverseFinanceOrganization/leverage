@@ -66,7 +66,7 @@ interface IUniversePairVault{
     /// @notice Get the amount of token0 and token1 corresponding to specific share amount
     /// @param share The share amount
     /// @return The amount of token0 and token1 corresponding to specific share amount
-    function calBalance(uint256 share) external view returns (uint256, uint256);
+    function getBals(uint256 share) external view returns (uint256, uint256);
 
     /// @notice Deposit token into this contract
     /// @param amount0Desired The amount of token0 want to deposit

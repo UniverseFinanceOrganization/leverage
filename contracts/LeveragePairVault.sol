@@ -503,7 +503,7 @@ contract LeveragePairVault is Ownable {
 
         PoolInfo memory pool = pools[position.vaultAddress];
 
-        (bal0, bal1) = pool.vault.calBalance(position.share);
+        (bal0, bal1) = pool.vault.getBals(position.share);
 
         uint256 debt0 = lendVault.debtShareToBalance(pool.token0, position.debtShare0);
         uint256 debt1 = lendVault.debtShareToBalance(pool.token1, position.debtShare1);
