@@ -28,9 +28,9 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         bool canLoan;
         uint8 interestTier; // 0-high 1-middle 2-low
         IBToken ibToken;
-        uint256 totalDebt; // 出借金额
-        uint256 totalDebtShare;  // 出借总份额
-        uint256 totalReserve; // 储备金
+        uint256 totalDebt;
+        uint256 totalDebtShare;
+        uint256 totalReserve;
         uint256 lastInterestTime; // last update totalDebt time
     }
 
@@ -48,7 +48,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
 
     /* ========== MODIFIERS ========== */
 
-    ///借款人白名单
+    ///debtor whiteList
     modifier onlyDebtor {
         require(debtorWhitelists[msg.sender], "not in whiteList");
         _;
@@ -77,7 +77,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         bank.totalDebtShare = 0;
         bank.totalReserve = 0;
         bank.lastInterestTime = block.timestamp;
-        // 添加新的ib代币
+
         bank.ibToken = new IBToken{salt: keccak256(abi.encode(msg.sender, _name, _symbol))}(_name, _symbol);
 
         banks[tokenAddress] = bank;
@@ -105,14 +105,12 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         debtorWhitelists[debtorAddress] = canBorrow;
     }
 
-    //释放储备金分给所有存款用户
     function reserveDistribution(address tokenAddress, uint256 amount) external onlyOwner {
         BankInfo storage bank = banks[tokenAddress];
         require(bank.totalReserve >= amount, "invalid param");
         bank.totalReserve = bank.totalReserve.sub(amount);
         emit ReserveDist(tokenAddress, amount);
     }
-
 
     function withdrawReserve(address tokenAddress, uint256 amt, address to) external onlyOwner {
         BankInfo memory bank = banks[tokenAddress];
@@ -149,13 +147,13 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         return IERC20(tokenAddress).balanceOf(address(this));
     }
 
-    /// 出借资金
+    ///
     function totalDebt(address tokenAddress) public view override returns(uint256, uint256) {
         BankInfo memory bank = banks[tokenAddress];
         return (bank.totalDebt, bank.totalDebtShare);
     }
 
-    /// 存款总额（余额 + 贷款总额 - 备用金）
+    /// total balance（balance + debt - reserve）
     function totalBalance(address tokenAddress) public view returns(uint256) {
         BankInfo memory bank = banks[tokenAddress];
         uint256 idleBal = idleBalance(tokenAddress);
@@ -234,20 +232,20 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @dev Return the pending interest that will be accrued in the next call.
     /// @param tokenAddress the debt token address.
     function pendingInterest(address tokenAddress) public view returns(uint256) {
-        // 1、获取bank
+        // 1、bank info
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen, 'bank not exists');
-        // 2、计算上次结息到现在过了多长时间
+        // 2、time past
         uint256 timePast = block.timestamp.sub(bank.lastInterestTime);
-        // 3、防止重复计息
+        // 3、prevent double counting
         if (timePast == 0) {return 0;}
-        // 4、获取每秒利率
+        // 4、rate per second
         uint256 ratePerSec = configReader.interestRate(utilizationRate(tokenAddress), bank.interestTier);
-        // 5、利息 = 每秒利率 * 计息秒数 * 贷款金额 / 利率系数
+        // 5、interest = ratePerSec * timePast * totalDebt / rate
         return ratePerSec.mul(timePast).mul(bank.totalDebt).div(1E18); // rate 1E18
     }
 
-    // 结息并返回share对应的应还金额和当前token的余额
+    // interest and return debt amount and balance
     function interestAndBal(address token, uint256 share) internal returns(uint256, uint256){
         calInterest(token);
         if(share > 0){
@@ -258,13 +256,10 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     }
 
     function checkPayLess(address token, uint256 beforeBal, uint256 debtValue) internal view{
-        // 1、获取还款后token的数量
         uint256 afterBal = idleBalance(token);
-        // 2、校验收到的还款够不够
         require(beforeBal.add(debtValue) <= afterBal, "pay less");
     }
 
-    // 减去贷款金额和对应的份额
     function removeDebtShare(address token, uint share, uint debtValue) internal{
         BankInfo memory bank = banks[token];
         debtorShares[token][msg.sender] = debtorShares[token][msg.sender].sub(share);
@@ -279,10 +274,10 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @dev calculate interest and add to debt.
     /// @param tokenAddress the debt token address.
     function calInterest(address tokenAddress) internal {
-        // 1、获取bank
+        // 1、bank info
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen, 'bank not exists');
-        // 2、计算利息
+        // 2、interest
         uint256 interest = pendingInterest(tokenAddress);
         if (interest > 0) {
             // 3、 计算服务费
@@ -292,7 +287,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
             // 5、 服务费记账为备用金
             bank.totalReserve = bank.totalReserve.add(reserve);
         }
-        // 6、更新结息时间
+        // 6、update time
         bank.lastInterestTime = block.timestamp;
         // update
         banks[tokenAddress] = bank;
@@ -302,16 +297,16 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @param tokenAddress the deposit token address.
     /// @param amount the amount of deposit token.
     function deposit(address tokenAddress, uint256 amount) external nonReentrant{
-        // 1、拿到bank, 检查是否开启
+        // 1、bank info
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen && bank.canDeposit, 'cannot deposit');
-        // 2、去结算存款利息
+        // 2、interest
         calInterest(tokenAddress);
-        // 3、计算对应的份额
+        // 3、calc share
         uint256 newShare = balanceToShare(tokenAddress, amount);
-        // 4、划扣用户的资金
+        // 4、transfer
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
-        // 5、给用户发放份额对应的ibToken代币
+        // 5、mint
         bank.ibToken.mint(msg.sender, newShare);
         // Event
         emit Deposit(tokenAddress, amount);
@@ -322,7 +317,7 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @param tokenAddress the deposit token address.
     /// @param share the deposit share.
     function withdraw(address tokenAddress, uint256 share) external nonReentrant {
-        // 1、获取BANK
+        // 1、bank info
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen && bank.canWithdraw, 'cannot withdraw');
         uint userShareBalance = bank.ibToken.balanceOf(msg.sender);
@@ -330,22 +325,22 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         if(userShareBalance < share){
             share = userShareBalance;
         }
-        // 2、结息
+        // 2、interest
         calInterest(tokenAddress);
-        // 3、份额转金额
+        // 3、share to amount
         uint256 withdrawAmount = shareToBalance(tokenAddress, share);
-        // 4、获取闲置的余额
+        // 4、idle amount
         uint256 idleAmount = idleBalance(tokenAddress);
-        // 5、比较闲置金额和提取金额，取值小的，计算提现份额
+        // 5、withdraw amount must less idleAmount
         if (withdrawAmount > idleAmount) {
             withdrawAmount = idleAmount;
-            //计算真正提现的share
+            //real withdraw share
             share = balanceToShare(tokenAddress, withdrawAmount);
         }
-        // 6、销毁用户的份额代币
+        // 6、burn
         bank.ibToken.burn(msg.sender, share);
 
-        // 7、把钱转给提现用户
+        // 7、transfer
         IERC20(tokenAddress).safeTransfer(msg.sender, withdrawAmount);
 
         // Event
@@ -357,23 +352,23 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @param tokenAddress the borrow token address.
     /// @param loanAmount the amount of loan.
     function issueLoan(address tokenAddress, uint256 loanAmount, address to) external onlyDebtor nonReentrant override returns(uint256) {
-        // 1、获取BANK
+        // 1、bank info
         BankInfo memory bank = banks[tokenAddress];
         require(bank.isOpen && bank.canLoan, 'cannot issue loan');
         require(IERC20(tokenAddress).balanceOf(address(this)) >= loanAmount, 'not sufficient funds');
-        // 2、结息
+        // 2、interest
         calInterest(tokenAddress);
-        // 3、计算贷款份额
+        // 3、share
         uint256 newDebtShare = balanceToDebtShare(tokenAddress, loanAmount);
 
-        // 4、更新借款人（杠杆金库）借款份额，总份额和总金额
+        // 4、update share
         debtorShares[tokenAddress][msg.sender] = debtorShares[tokenAddress][msg.sender].add(newDebtShare);
         bank.totalDebtShare = bank.totalDebtShare.add(newDebtShare);
         bank.totalDebt = bank.totalDebt.add(loanAmount);
         // update
         banks[tokenAddress] = bank;
 
-        // 5、发放贷款
+        // 5、transfer
         IERC20(tokenAddress).safeTransfer(to, loanAmount);
 
         // Event
@@ -382,23 +377,23 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
         return newDebtShare;
     }
 
-    /// @dev 还款 shareA和shareB分别对应tokenA和tokenB要还款的份额
+    /// @dev pay shareA and shareB
     function payLoan(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external onlyDebtor nonReentrant override{
 
-        // 1、校验
+        // 1、check
         require(shareA > 0 || shareB > 0, "wrong share param!");
         require(shareA <= debtorShares[tokenA][msg.sender], "wrong share param!");
         require(shareB <= debtorShares[tokenB][msg.sender], "wrong share param!");
-        // 2、结息（得到应还金额和当前余额）
+        // 2、interest and get debt value
         (uint256 debtValueA, uint256 beforeBalA) = interestAndBal(tokenA, shareA);
         (uint256 debtValueB, uint256 beforeBalB) = interestAndBal(tokenB, shareB);
-        // 3、用回调的方式去借款人处收回贷款
+        // 3、callback
         IPayLoanCallback(msg.sender).payLoanCallback(tokenA, tokenB, debtValueA, debtValueB);
-        // 4、检查还款够不够
+        // 4、check pay result
         checkPayLess(tokenA, beforeBalA, debtValueA);
         checkPayLess(tokenB, beforeBalB, debtValueB);
 
-        // 5、扣除贷款份额
+        // 5、reduce share
         if(shareA > 0){
             removeDebtShare(tokenA, shareA, debtValueA);
         }
@@ -416,16 +411,16 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     /// @param tokenB the token witch will be used to pay loan.
     /// @param shareA the debt share.
     function liquidate(address tokenA, address tokenB, uint256 shareA, uint256 shareB) external onlyDebtor nonReentrant override{
-        // 1、校验
+        // 1、check
         require(shareA > 0 || shareB > 0, "wrong share!");
         require(shareA <= debtorShares[tokenA][msg.sender], "wrong share!");
         require(shareB <= debtorShares[tokenB][msg.sender], "wrong share!");
-        // 2、结息
+        // 2、interest
         (uint256 debtValueA, uint256 beforeBalA) = interestAndBal(tokenA, shareA);
         (uint256 debtValueB, uint256 beforeBalB) = interestAndBal(tokenB, shareB);
-        // 3、用回调的方式去借款人处收回贷款
+        // 3、callback
         IPayLoanCallback(msg.sender).payLoanCallback(tokenA, tokenB, debtValueA, debtValueB);
-        // 4、补偿不良贷款 和 减去贷款份额
+        // 4、Compensation for non-performing loans and reduce debt share
         uint lostA;
         uint lostB;
         if(shareA > 0){
@@ -443,15 +438,13 @@ contract LendVault is ILendVault, Ownable, ReentrancyGuard {
     function payLost(address token, uint beforeBal, uint debtValue) internal returns(uint256){
         uint256 afterBal = idleBalance(token);
         beforeBal = beforeBal.add(debtValue);
-        //还款金额不够
+        //Insufficient repayment
         if (beforeBal > afterBal) {
             uint256 lost = beforeBal.sub(afterBal);
             BankInfo memory bank = banks[token];
             if (bank.totalReserve >= lost) {
-                // 备用金金额是包含在总存款中的，所以备用金补偿只需要减少备用金金额，用户的存款金额相应就会增加
                 bank.totalReserve = bank.totalReserve - lost;
             } else {
-                // 备用金也不够了，全部用来补偿， 剩下的坏账所有人均摊
                 bank.totalReserve = 0;
             }
             // update

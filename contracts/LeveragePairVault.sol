@@ -247,7 +247,6 @@ contract LeveragePairVault is Ownable {
         if(userNv == 0){
             return uint(-1);
         }else{
-            //借贷净值/用户持有净值
             return debtNv.mul(10000).div(userNv);
         }
 
@@ -288,13 +287,11 @@ contract LeveragePairVault is Ownable {
     }
 
     function withdraw(IUniversePairVault _vault, uint256 share) internal {
-        //先看有多少ULP
         (uint256 ulpAmount, ) = _vault.getUserShares(address(this));
         if(share > ulpAmount){
             share = ulpAmount;
         }
         _vault.withdraw(share);
-        // EVENT
         emit Withdraw(address(this), share);
     }
 
@@ -343,7 +340,6 @@ contract LeveragePairVault is Ownable {
 
     ///use tokenB swap token for pay loan
     function payLoanLack(address token, address tokenB, uint256 restDebt, uint256 balB) public onlyLendVault {
-        //先去询价restDebt个token需要多少tokenB
         uint256 swapTokenB =  _quoter(tokenB, token, restDebt);
         if(swapTokenB == 0){
             return;
@@ -351,7 +347,6 @@ contract LeveragePairVault is Ownable {
             swapTokenB = balB;
             restDebt = 0;
         }
-        //去交换，当tokenB的余额也不足于偿还时不校验restDebt, 有多少还多少 TODO 确认
         _swap(tokenB, token, swapTokenB, restDebt);
         IERC20(token).safeTransfer(msg.sender, IERC20(token).balanceOf(address(this)));
     }
@@ -652,7 +647,6 @@ contract LeveragePairVault is Ownable {
     /* ========== CALLBACK ========== */
 
     function payLoanCallback(address tokenA, address tokenB, uint256 debtValueA, uint256 debtValueB) external onlyLendVault {
-        //够还的直接还，不够还的记账待会再还
         (uint256 balA, uint256 restDebtA) = payLoanEnough(tokenA, debtValueA);
         (uint256 balB, uint256 restDebtB) = payLoanEnough(tokenB, debtValueB);
 

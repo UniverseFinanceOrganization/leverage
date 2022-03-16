@@ -14,8 +14,6 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 contract UniV3PriceOracle is Ownable, IPriceOracle {
     using SafeMath for uint256;
 
-    /// @dev 从uniV3 获取second、second * 2、。。。、second * num 秒前的价格平均数（此价格 = 价格 * 2^96）
-    /// NOTE: token0相对于token1的价格
     function getPrice(address pool, uint8 second, uint8 num)
         external view override
         returns (uint256 price)
@@ -26,7 +24,6 @@ contract UniV3PriceOracle is Ownable, IPriceOracle {
             secondsAgos[i] = second * (num - i);
         }
         (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(secondsAgos);
-        //计算价格
         int56 tick;
         uint160 sqrtRatio;
         uint256 priceQ96;

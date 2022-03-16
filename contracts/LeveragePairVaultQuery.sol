@@ -34,6 +34,7 @@ contract LeveragePairVaultQuery {
         lendVault = ILendVault(_lendVault);
     }
 
+    // get position info
     function _positions(uint256 positionId) internal view returns(LeveragePairVault.Position memory position){
         (address owner, address vaultAddress, uint256 debtShare0, uint256 debtShare1, uint256 share) = pairVault.positions(positionId);
         position.owner = owner;
